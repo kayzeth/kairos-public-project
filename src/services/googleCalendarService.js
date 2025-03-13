@@ -268,8 +268,6 @@ class GoogleCalendarService {
 
       // Process events into a format compatible with our app
       return response.result.items.map(event => {
-        const start = event.start.dateTime ? new Date(event.start.dateTime) : new Date(event.start.date);
-        const end = event.end.dateTime ? new Date(event.end.dateTime) : new Date(event.end.date);
         const allDay = !event.start.dateTime;
         
         return {

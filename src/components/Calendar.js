@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, parseISO } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faChevronRight, faPlus, faSync } from '@fortawesome/free-solid-svg-icons';
+import { faChevronLeft, faChevronRight, faPlus } from '@fortawesome/free-solid-svg-icons';
 import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';
@@ -16,7 +16,7 @@ const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(false);
-  const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
+  const [setSyncStatus] = useState({ status: 'idle', message: '' });
 
   const nextHandler = () => {
     if (view === 'month') {
@@ -76,7 +76,7 @@ const Calendar = () => {
     };
     
     checkGoogleCalendarConnection();
-  }, []);
+  }, [importGoogleCalendarEvents]);
   
   // Import events from Google Calendar
   const importGoogleCalendarEvents = async () => {
@@ -149,7 +149,7 @@ const Calendar = () => {
     };
     
     checkGoogleCalendarConnection();
-  }, []);
+  }, [importGoogleCalendarEvents]);
 
   const saveEvent = async (eventData) => {
     // Remove any existing id from eventData

@@ -9,7 +9,7 @@ const Account = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
-  const [apiConfigured, setApiConfigured] = useState(isConfigured());
+  const [apiConfigured] = useState(isConfigured());
 
   useEffect(() => {
     const initializeGoogleCalendar = async () => {
