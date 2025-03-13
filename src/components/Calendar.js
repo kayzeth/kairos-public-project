@@ -51,14 +51,17 @@ const Calendar = () => {
   };
 
   const saveEvent = (eventData) => {
+    // Remove any existing id from eventData
+    const { id: _, ...cleanEventData } = eventData;
+    
     if (selectedEvent) {
       // Edit existing event
       const updatedEvents = events.map(event => 
         event.id === selectedEvent.id ? { 
           ...event, 
-          ...eventData,
-          start: eventData.allDay ? eventData.start : `${eventData.start}T${eventData.startTime}`,
-          end: eventData.allDay ? eventData.end : `${eventData.end}T${eventData.endTime}`
+          ...cleanEventData,
+          start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+          end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
         } : event
       );
       setEvents(updatedEvents);
@@ -66,9 +69,9 @@ const Calendar = () => {
       // Add new event
       const newEvent = {
         id: Date.now().toString(),
-        ...eventData,
-        start: eventData.allDay ? eventData.start : `${eventData.start}T${eventData.startTime}`,
-        end: eventData.allDay ? eventData.end : `${eventData.end}T${eventData.endTime}`
+        ...cleanEventData,
+        start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+        end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
       };
       setEvents([...events, newEvent]);
     }
@@ -76,7 +79,7 @@ const Calendar = () => {
   };
 
   const deleteEvent = (id) => {
-    setEvents(events.filter(event => event.id !== id));
+    setEvents(prevEvents => prevEvents.filter(event => event.id !== id));
     closeModal();
   };
 

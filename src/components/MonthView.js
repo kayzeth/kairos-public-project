@@ -89,7 +89,7 @@ const MonthView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
       day = addDays(day, 1);
     }
     rows.push(
-      <div className="calendar-grid" key={day}>
+      <div className="calendar-grid" key={`row-${format(day, 'yyyy-MM-dd')}`}>
         {days}
       </div>
     );
