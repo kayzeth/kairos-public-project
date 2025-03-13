@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Hourglass shape for Kairos (time) -->
+  <defs>
+    <linearGradient id="sandGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#e6d7bf" />
+      <stop offset="100%" stop-color="#d2b48c" />
+    </linearGradient>
+    <linearGradient id="glassGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5f1e8" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#f5f1e8" stop-opacity="0.6" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Circular background -->
+  <circle cx="100" cy="100" r="90" fill="#8b7355" opacity="0.8" />
+  <circle cx="100" cy="100" r="85" fill="url(#glassGradient)" />
+  
+  <!-- Hourglass shape - more minimalistic -->
+  <path d="M75,45 L125,45 L125,55 Q125,75 105,85 Q85,100 105,115 Q125,125 125,145 L125,155 L75,155 L75,145 Q75,125 95,115 Q115,100 95,85 Q75,75 75,55 L75,45 Z" 
+        fill="url(#sandGradient)" stroke="#4a3c2c" stroke-width="1.5" />
+  
+  <!-- Sand in the hourglass -->
+  <path d="M75,145 Q75,125 95,115 Q115,100 95,85 Q75,75 75,55 L75,45 L125,45 L125,55 Q125,75 105,85 Q85,100 105,115 Q125,125 125,145 Z" 
+        fill="#e8c07d" opacity="0.7" />
+  
+  <!-- Top and bottom lines for hourglass -->
+  <line x1="75" y1="45" x2="125" y2="45" stroke="#4a3c2c" stroke-width="2" />
+  <line x1="75" y1="155" x2="125" y2="155" stroke="#4a3c2c" stroke-width="2" />
+</svg>
