@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -53,6 +53,54 @@ const Calendar = () => {
     setSelectedEvent(null);
   };
 
+  // Import events from Google Calendar
+  const importGoogleCalendarEvents = useCallback(async () => {
+    try {
+      setSyncStatus({ status: 'loading', message: 'Importing events from Google Calendar...' });
+        
+        // Get events from the last month to the next month
+        const now = new Date();
+        const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        const oneMonthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        
+        const googleEvents = await googleCalendarService.importEvents(oneMonthAgo, oneMonthFromNow);
+        
+        // Filter out any Google events that might already be in our events array
+        const existingGoogleEventIds = events
+          .filter(event => event.googleEventId)
+          .map(event => event.googleEventId);
+        
+        const newGoogleEvents = googleEvents.filter(
+          event => !existingGoogleEventIds.includes(event.googleEventId)
+        );
+        
+        // Add the new Google events to our events array
+        setEvents(prevEvents => [...prevEvents, ...newGoogleEvents]);
+        
+        setSyncStatus({ 
+          status: 'success', 
+          message: `Successfully imported ${newGoogleEvents.length} events from Google Calendar` 
+        });
+        
+        // Clear the success message after a few seconds
+        setTimeout(() => {
+          setSyncStatus({ status: 'idle', message: '' });
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Error importing Google Calendar events:', error);
+        setSyncStatus({ 
+          status: 'error', 
+          message: 'Failed to import events from Google Calendar' 
+        });
+        
+        // Clear the error message after a few seconds
+        setTimeout(() => {
+          setSyncStatus({ status: 'idle', message: '' });
+        }, 3000);
+      }
+    }, [events, setEvents, setSyncStatus]);
+
   // Check if Google Calendar is connected when component mounts
   useEffect(() => {
     const checkGoogleCalendarConnection = async () => {
@@ -77,54 +125,6 @@ const Calendar = () => {
     
     checkGoogleCalendarConnection();
   }, [importGoogleCalendarEvents]);
-  
-  // Import events from Google Calendar
-  const importGoogleCalendarEvents = async () => {
-    try {
-      setSyncStatus({ status: 'loading', message: 'Importing events from Google Calendar...' });
-      
-      // Get events from the last month to the next month
-      const now = new Date();
-      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      const oneMonthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-      
-      const googleEvents = await googleCalendarService.importEvents(oneMonthAgo, oneMonthFromNow);
-      
-      // Filter out any Google events that might already be in our events array
-      const existingGoogleEventIds = events
-        .filter(event => event.googleEventId)
-        .map(event => event.googleEventId);
-      
-      const newGoogleEvents = googleEvents.filter(
-        event => !existingGoogleEventIds.includes(event.googleEventId)
-      );
-      
-      // Add the new Google events to our events array
-      setEvents(prevEvents => [...prevEvents, ...newGoogleEvents]);
-      
-      setSyncStatus({ 
-        status: 'success', 
-        message: `Successfully imported ${newGoogleEvents.length} events from Google Calendar` 
-      });
-      
-      // Clear the success message after a few seconds
-      setTimeout(() => {
-        setSyncStatus({ status: 'idle', message: '' });
-      }, 3000);
-      
-    } catch (error) {
-      console.error('Error importing Google Calendar events:', error);
-      setSyncStatus({ 
-        status: 'error', 
-        message: 'Failed to import events from Google Calendar' 
-      });
-      
-      // Clear the error message after a few seconds
-      setTimeout(() => {
-        setSyncStatus({ status: 'idle', message: '' });
-      }, 3000);
-    }
-  };
 
   // Check if Google Calendar is connected when component mounts
   useEffect(() => {
