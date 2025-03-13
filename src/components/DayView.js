@@ -29,8 +29,6 @@ const DayView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
   // Create hour slots
   const hourSlots = [];
   for (let i = 0; i < 24; i++) {
-    const hourStart = addHours(startOfDay(currentDate), i);
-    
     // Filter events for this hour
     const hourEvents = timeEvents.filter(event => {
       const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start;

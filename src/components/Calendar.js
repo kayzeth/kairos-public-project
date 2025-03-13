@@ -152,15 +152,18 @@ const Calendar = () => {
   }, []);
 
   const saveEvent = async (eventData) => {
+    // Remove any existing id from eventData
+    const { id: _, ...cleanEventData } = eventData;
+
     try {
       if (selectedEvent) {
         // Edit existing event
         const updatedEvents = events.map(event => 
           event.id === selectedEvent.id ? { 
-            ...event, 
+            ...cleanEventData, 
             ...eventData,
-            start: eventData.allDay ? eventData.start : `${eventData.start}T${eventData.startTime}`,
-            end: eventData.allDay ? eventData.end : `${eventData.end}T${eventData.endTime}`
+            start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+            end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
           } : event
         );
         setEvents(updatedEvents);
@@ -169,10 +172,10 @@ const Calendar = () => {
         if (isGoogleCalendarConnected && selectedEvent.googleEventId) {
           try {
             await googleCalendarService.updateEvent({
-              ...eventData,
+              ...cleanEventData,
               googleEventId: selectedEvent.googleEventId,
-              start: eventData.allDay ? eventData.start : `${eventData.start}T${eventData.startTime}`,
-              end: eventData.allDay ? eventData.end : `${eventData.end}T${eventData.endTime}`
+              start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+              end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
             });
           } catch (error) {
             console.error('Error updating event in Google Calendar:', error);
@@ -182,9 +185,9 @@ const Calendar = () => {
         // Add new event
         const newEvent = {
           id: Date.now().toString(),
-          ...eventData,
-          start: eventData.allDay ? eventData.start : `${eventData.start}T${eventData.startTime}`,
-          end: eventData.allDay ? eventData.end : `${eventData.end}T${eventData.endTime}`
+          ...cleanEventData,
+          start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+          end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
         };
         
         // If connected to Google Calendar, also create the event there
@@ -212,7 +215,7 @@ const Calendar = () => {
     const eventToDelete = events.find(event => event.id === id);
     
     // Remove from our local events
-    setEvents(events.filter(event => event.id !== id));
+    setEvents(prevEvents => prevEvents.filter(event => event.id !== id));
     
     // If this event was from Google Calendar and we're connected, delete it there too
     if (isGoogleCalendarConnected && eventToDelete && eventToDelete.googleEventId) {

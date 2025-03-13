@@ -9,11 +9,11 @@ import './styles/Account.css';
 function App() {
   return (
     <Router>
-      <div className="app-container">
+      <div className="app-container" data-testid="app-container">
         <Header />
         <main className="main-content">
           <Routes>
-            <Route path="/" element={<Calendar />} />
+            <Route path="/" element={<Calendar data-testid="calendar-component"/>} />
             <Route path="/account" element={<Account />} />
           </Routes>
         </main>

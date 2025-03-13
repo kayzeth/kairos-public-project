@@ -2,8 +2,8 @@ import React from 'react';
 import { format, startOfWeek, endOfWeek, addDays, addHours, startOfDay, isSameDay, parseISO } from 'date-fns';
 
 const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
-  const weekStart = startOfWeek(currentDate);
-  const weekEnd = endOfWeek(weekStart);
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Monday
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   
   // Create time slots
   const timeSlots = [];
@@ -20,14 +20,18 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
   let day = weekStart;
   
   while (day <= weekEnd) {
+    // Create a stable reference to the current day to avoid unsafe references in callbacks
+    const currentDay = day;
+    
     const dayEvents = events.filter(event => {
       const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start;
-      return isSameDay(eventStart, day);
+      return isSameDay(eventStart, currentDay);
     });
     
     const hourSlots = [];
     for (let i = 0; i < 24; i++) {
-      const hourStart = addHours(startOfDay(day), i);
+      // Capture day in a closure to avoid the loop reference issue
+      const currentDay = day;
       
       // Filter events for this hour
       const hourEvents = dayEvents.filter(event => {
@@ -43,27 +47,32 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
           className="hour-slot" 
           key={i}
           onClick={() => {
-            const newDate = addHours(startOfDay(day), i);
+            const newDate = addHours(startOfDay(currentDay), i);
             onAddEvent(newDate);
           }}
         >
-          {hourEvents.map(event => (
-            <div
-              key={event.id}
-              className="time-event"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditEvent(event);
-              }}
-              style={{ 
-                backgroundColor: event.color || 'var(--primary-color)',
-                top: `${(parseISO(event.start).getMinutes() / 60) * 100}%`,
-                height: '30px'
-              }}
-            >
-              {event.title}
-            </div>
-          ))}
+          {hourEvents.map(event => {
+            // Create a stable reference to the event
+            const stableEvent = event;
+            const eventStart = typeof stableEvent.start === 'string' ? parseISO(stableEvent.start) : stableEvent.start;
+            return (
+              <div
+                key={stableEvent.id}
+                className="time-event"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditEvent(stableEvent);
+                }}
+                style={{ 
+                  backgroundColor: stableEvent.color || 'var(--primary-color)',
+                  top: `${(eventStart.getMinutes() / 60) * 100}%`,
+                  height: '30px'
+                }}
+              >
+                {stableEvent.title}
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -84,7 +93,11 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
               className="event"
               onClick={(e) => {
                 e.stopPropagation();
-                onEditEvent(event);
+                onEditEvent({
+                  ...event,
+                  start: event.start instanceof Date ? event.start.toISOString() : event.start,
+                  end: event.end instanceof Date ? event.end.toISOString() : event.end,
+                });                
               }}
               style={{ backgroundColor: event.color || 'var(--primary-color)' }}
             >
