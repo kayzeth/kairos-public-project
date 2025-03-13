@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, renderHook } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Calendar from '../Calendar';
+import EventModal from '../EventModal';
 
 // Mock child components to isolate Calendar component testing
 jest.mock('../MonthView', () => () => <div data-testid="month-view">Month View</div>);
@@ -98,5 +99,33 @@ describe('Calendar Component', () => {
     
     // Modal should be closed
     expect(screen.queryByTestId('event-modal')).not.toBeInTheDocument();
+  });
+
+  test('deletes an event when deleteEvent is called', () => {
+    const initialEvents = [
+      {
+        id: '1',
+        title: 'Test Event',
+        start: '2025-03-13T09:00',
+        end: '2025-03-13T10:00'
+      }
+    ];
+    
+    const mockDeleteEvent = jest.fn();
+    
+    render(
+      <EventModal 
+        event={initialEvents[0]}
+        onDelete={mockDeleteEvent}
+        onClose={() => {}}
+      />
+    );
+    
+    // Find and click the delete button
+    const deleteButton = screen.getByRole('button', { name: /delete/i });
+    fireEvent.click(deleteButton);
+    
+    // Verify delete was called
+    expect(mockDeleteEvent).toHaveBeenCalledWith('1');
   });
 });
