@@ -20,14 +20,18 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
   let day = weekStart;
   
   while (day <= weekEnd) {
+    // Create a stable reference to the current day to avoid unsafe references in callbacks
+    const currentDay = day;
+    
     const dayEvents = events.filter(event => {
       const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start;
-      return isSameDay(eventStart, day);
+      return isSameDay(eventStart, currentDay);
     });
     
     const hourSlots = [];
     for (let i = 0; i < 24; i++) {
-      const hourStart = addHours(startOfDay(day), i);
+      // Capture day in a closure to avoid the loop reference issue
+      const currentDay = day;
       
       // Filter events for this hour
       const hourEvents = dayEvents.filter(event => {
@@ -43,27 +47,31 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
           className="hour-slot" 
           key={i}
           onClick={() => {
-            const newDate = addHours(startOfDay(day), i);
+            const newDate = addHours(startOfDay(currentDay), i);
             onAddEvent(newDate);
           }}
         >
-          {hourEvents.map(event => (
-            <div
-              key={event.id}
-              className="time-event"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditEvent(event);
-              }}
-              style={{ 
-                backgroundColor: event.color || 'var(--primary-color)',
-                top: `${(parseISO(event.start).getMinutes() / 60) * 100}%`,
-                height: '30px'
-              }}
-            >
-              {event.title}
-            </div>
-          ))}
+          {hourEvents.map(event => {
+            // Create a stable reference to the event
+            const stableEvent = event;
+            return (
+              <div
+                key={stableEvent.id}
+                className="time-event"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditEvent(stableEvent);
+                }}
+                style={{ 
+                  backgroundColor: stableEvent.color || 'var(--primary-color)',
+                  top: `${(parseISO(stableEvent.start).getMinutes() / 60) * 100}%`,
+                  height: '30px'
+                }}
+              >
+                {stableEvent.title}
+              </div>
+            );
+          })}
         </div>
       );
     }
