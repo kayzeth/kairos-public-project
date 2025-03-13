@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faTrashAlt, faClock, faMapMarkerAlt, faAlignLeft } from '@fortawesome/free-solid-svg-icons';
 
-const EventModal = ({ onClose, onSave, onDelete, event, selectedDate }) => {
+const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date() }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -58,6 +58,12 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Manually check if required fields are empty
+    if (!formData.title.trim()) {
+      return; // Stop submission if title is empty
+    }
+  
     onSave({
       ...formData,
       id: event ? event.id : undefined
@@ -97,16 +103,17 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate }) => {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                  <input
-                    type="date"
-                    id="start"
-                    name="start"
-                    className="form-input"
-                    value={formData.start}
-                    onChange={handleChange}
-                    required
-                    style={{ marginRight: '8px' }}
-                  />
+                <input
+                  type="date"
+                  id="start"
+                  name="start"
+                  className="form-input"
+                  value={formData.start}
+                  onChange={handleChange}
+                  required
+                  aria-label="Start"
+                  style={{ marginRight: '8px' }}
+                />
                   {!formData.allDay && (
                     <input
                       type="time"
@@ -116,6 +123,7 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate }) => {
                       value={formData.startTime}
                       onChange={handleChange}
                       required
+                      aria-label="Start time"
                     />
                   )}
                 </div>
@@ -129,6 +137,7 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate }) => {
                     onChange={handleChange}
                     required
                     style={{ marginRight: '8px' }}
+                    aria-label="End"
                   />
                   {!formData.allDay && (
                     <input
@@ -139,6 +148,7 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate }) => {
                       value={formData.endTime}
                       onChange={handleChange}
                       required
+                      aria-label="End time"
                     />
                   )}
                 </div>

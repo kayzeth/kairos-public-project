@@ -5,10 +5,10 @@ import './styles/App.css';
 
 function App() {
   return (
-    <div className="app-container">
+    <div className="app-container" data-testid="app-container">
       <Header />
       <main className="main-content">
-        <Calendar />
+        <Calendar data-testid="calendar-component" />
       </main>
     </div>
   );

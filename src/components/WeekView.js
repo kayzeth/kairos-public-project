@@ -2,8 +2,8 @@ import React from 'react';
 import { format, startOfWeek, endOfWeek, addDays, addHours, startOfDay, isSameDay, parseISO } from 'date-fns';
 
 const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
-  const weekStart = startOfWeek(currentDate);
-  const weekEnd = endOfWeek(weekStart);
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Monday
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 0 });
   
   // Create time slots
   const timeSlots = [];
@@ -54,6 +54,7 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
           {hourEvents.map(event => {
             // Create a stable reference to the event
             const stableEvent = event;
+            const eventStart = typeof stableEvent.start === 'string' ? parseISO(stableEvent.start) : stableEvent.start;
             return (
               <div
                 key={stableEvent.id}
@@ -64,7 +65,7 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
                 }}
                 style={{ 
                   backgroundColor: stableEvent.color || 'var(--primary-color)',
-                  top: `${(parseISO(stableEvent.start).getMinutes() / 60) * 100}%`,
+                  top: `${(eventStart.getMinutes() / 60) * 100}%`,
                   height: '30px'
                 }}
               >
@@ -92,7 +93,11 @@ const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
               className="event"
               onClick={(e) => {
                 e.stopPropagation();
-                onEditEvent(event);
+                onEditEvent({
+                  ...event,
+                  start: event.start instanceof Date ? event.start.toISOString() : event.start,
+                  end: event.end instanceof Date ? event.end.toISOString() : event.end,
+                });                
               }}
               style={{ backgroundColor: event.color || 'var(--primary-color)' }}
             >
