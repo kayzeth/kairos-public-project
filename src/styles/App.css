@@ -30,6 +30,46 @@ body {
   align-items: center;
 }
 
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xl);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--text-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  color: var(--text-dark);
+}
+
+.account-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  transition: background-color 0.2s ease;
+}
+
+.account-link:hover {
+  background-color: var(--primary-dark);
+  color: white;
+}
+
+@media (max-width: 576px) {
+  .account-text {
+    display: none;
+  }
+}
+
 .logo-container {
   display: flex;
   align-items: center;
