@@ -1,0 +1,39 @@
+:root {
+  /* Sand theme color palette */
+  --primary-color: #d2b48c; /* Light sand */
+  --primary-dark: #b69b6d; /* Darker sand */
+  --primary-light: #e6d7bf; /* Very light sand */
+  --accent-color: #8b7355; /* Brown sand */
+  --text-color: #4a3c2c; /* Dark brown */
+  --text-light: #7d684a; /* Medium brown */
+  --background-color: #f5f1e8; /* Off-white sand */
+  --border-color: #cbbca0; /* Medium sand */
+  --highlight-color: #e8c07d; /* Golden sand */
+  --error-color: #a94442; /* Reddish brown */
+  --success-color: #5c8a70; /* Greenish */
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Font sizes */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-xxl: 2rem;
+  
+  /* Border radius */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
