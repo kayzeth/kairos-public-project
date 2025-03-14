@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -6,14 +6,65 @@ import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';
 import EventModal from './EventModal';
+import NudgeManager from '../utils/NudgeManager';
+
+// Mock exam data for the next two weeks
+const initialExams = [
+  {
+    id: '1',
+    title: 'CS1060 Midterm Exam',
+    description: 'Computer Science Midterm covering Algorithms and Data Structures',
+    start: '2025-03-21T14:00',
+    end: '2025-03-21T16:00',
+    allDay: false,
+    type: 'exam'
+  },
+  {
+    id: '2',
+    title: 'MATH2200 Final Exam',
+    description: 'Linear Algebra Final Examination',
+    start: '2025-03-25T10:00',
+    end: '2025-03-25T12:00',
+    allDay: false,
+    type: 'exam'
+  },
+  {
+    id: '3',
+    title: 'PHYS1140 Midterm',
+    description: 'Physics Midterm Examination - Mechanics and Waves',
+    start: '2025-03-28T15:00',
+    end: '2025-03-28T17:00',
+    allDay: false,
+    type: 'exam'
+  }
+];
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month'); // 'month', 'week', or 'day'
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(initialExams);
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [nudgeManager] = useState(() => new NudgeManager());
+
+  // Effect to analyze exams whenever events change
+  useEffect(() => {
+    // Test the nudger with different study hour settings
+    nudgeManager.setStudyHours('1', 15); // Set 15 hours for CS1060
+    nudgeManager.setStudyHours('2', 20); // Set 20 hours for MATH2200
+    nudgeManager.setStudyHours('3', 12); // Set 12 hours for PHYS1140
+    
+    // Analyze upcoming exams
+    const analysis = nudgeManager.analyzeUpcomingExams(events, currentDate);
+    
+    // Log analysis results for testing
+    console.log('Current Exam Analysis:', {
+      totalExams: analysis.length,
+      examsNeedingAttention: analysis.filter(exam => exam.needsAttention).length,
+      detailedAnalysis: analysis
+    });
+  }, [events, currentDate, nudgeManager]);
 
   const nextHandler = () => {
     if (view === 'month') {
