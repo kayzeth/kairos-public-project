@@ -47,23 +47,27 @@ const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [nudgeManager] = useState(() => new NudgeManager());
+  const [analysisComplete, setAnalysisComplete] = useState(false);
 
   // Effect to analyze exams whenever events change
   useEffect(() => {
-    // Test the nudger with different study hour settings
-    nudgeManager.setStudyHours('1', 15); // Set 15 hours for CS1060
-    nudgeManager.setStudyHours('2', 20); // Set 20 hours for MATH2200
-    nudgeManager.setStudyHours('3', 12); // Set 12 hours for PHYS1140
-    
-    // Analyze upcoming exams
-    const analysis = nudgeManager.analyzeUpcomingExams(events, currentDate);
-    
-    // Log analysis results for testing
-    console.log('Current Exam Analysis:', {
-      totalExams: analysis.length,
-      examsNeedingAttention: analysis.filter(exam => exam.needsAttention).length,
-      detailedAnalysis: analysis
-    });
+    // Delay the analysis to allow the UI to render first
+    const timer = setTimeout(async () => {
+      try {
+        const analysis = await nudgeManager.analyzeUpcomingExams(events, currentDate);
+        console.log('Current Exam Analysis:', {
+          totalExams: analysis.length,
+          examsNeedingAttention: analysis.filter(exam => exam.needsAttention).length,
+          detailedAnalysis: analysis
+        });
+        setAnalysisComplete(true);
+      } catch (error) {
+        console.error('Error analyzing exams:', error);
+        setAnalysisComplete(true);
+      }
+    }, 1000); // Delay of 1 second
+
+    return () => clearTimeout(timer);
   }, [events, currentDate, nudgeManager]);
 
   const nextHandler = () => {
