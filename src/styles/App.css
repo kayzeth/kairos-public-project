@@ -17,8 +17,8 @@ body {
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
+  overflow: auto;
 }
 
 .header {
@@ -76,6 +76,35 @@ body {
   gap: var(--spacing-sm);
 }
 
+.nav-tabs {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.nav-tab {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  transition: all 0.2s ease;
+}
+
+.nav-tab:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.nav-tab.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  font-weight: 600;
+}
+
 .logo {
   width: 40px;
   height: 40px;
@@ -94,7 +123,7 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
 }

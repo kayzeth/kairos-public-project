@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, parseISO, isAfter, isBefore } from 'date-fns';
 
 const MonthView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
   const [cellHeight, setCellHeight] = useState('auto');
@@ -50,11 +50,60 @@ const MonthView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
       const cloneDay = day;
       const dayNumber = format(day, 'd');
       
-      // Filter events for this day
-      const dayEvents = events.filter(event => {
+      // Helper function to check if an event should appear on a specific day
+      const shouldShowEventOnDay = (event, day) => {
+        // Parse event start date
         const eventStart = typeof event.start === 'string' ? parseISO(event.start) : event.start;
-        return isSameDay(eventStart, cloneDay);
-      });
+        
+        // If it's not a recurring event, just check if it's on the same day
+        if (!event.recurring) {
+          return isSameDay(eventStart, day);
+        }
+        
+        // For recurring events, check if the day of week matches
+        const eventDayOfWeek = eventStart.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const targetDayOfWeek = day.getDay();
+        
+        // If days of week don't match, event doesn't occur on this day
+        if (eventDayOfWeek !== targetDayOfWeek) {
+          return false;
+        }
+        
+        // Check if the target day is after the event start date
+        if (isBefore(day, eventStart)) {
+          return false;
+        }
+        
+        // Check if the event has an end date for recurrence
+        if (event.repeatUntil) {
+          let repeatUntilDate;
+          
+          // Parse the repeatUntil date
+          if (typeof event.repeatUntil === 'string') {
+            // Handle ISO string or date string
+            try {
+              repeatUntilDate = parseISO(event.repeatUntil);
+            } catch (e) {
+              console.error('Failed to parse repeatUntil date:', e);
+              return false;
+            }
+          } else if (event.repeatUntil instanceof Date) {
+            repeatUntilDate = event.repeatUntil;
+          } else {
+            // If repeatUntil is not a valid format, ignore it
+            return true;
+          }
+          
+          // Check if the target day is before or on the repeatUntil date
+          return !isAfter(day, repeatUntilDate);
+        }
+        
+        // If no repeatUntil is specified, the event recurs indefinitely
+        return true;
+      };
+      
+      // Filter events for this day, including recurring events
+      const dayEvents = events.filter(event => shouldShowEventOnDay(event, cloneDay));
 
       days.push(
         <div
