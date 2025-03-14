@@ -16,6 +16,8 @@ const SyllabusParser = ({ onAddEvents }) => {
   const [apiResponse, setApiResponse] = useState(null);
   const [repeatUntilDate, setRepeatUntilDate] = useState('');
   const [shouldRepeat, setShouldRepeat] = useState(true);
+  const [apiKey, setApiKey] = useState('');
+  const [apiKeyError, setApiKeyError] = useState(null);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -30,6 +32,11 @@ const SyllabusParser = ({ onAddEvents }) => {
     
     if (!file) {
       setError('Please select a syllabus file to upload');
+      return;
+    }
+    
+    if (!apiKey) {
+      setApiKeyError('Please enter your OpenAI API key');
       return;
     }
 
@@ -72,8 +79,8 @@ const SyllabusParser = ({ onAddEvents }) => {
         }
         
         // Log API key status (without revealing the key)
-        console.log('API Key status:', process.env.REACT_APP_OPENAI_API_KEY ? 'API key exists' : 'API key is missing');
-        console.log('API Key length:', process.env.REACT_APP_OPENAI_API_KEY ? process.env.REACT_APP_OPENAI_API_KEY.length : 0);
+        console.log('API Key status:', apiKey ? 'API key exists' : 'API key is missing');
+        console.log('API Key length:', apiKey ? apiKey.length : 0);
         
         // Truncate content if it's too long
         const maxContentLength = 15000; // Adjust based on token limits
@@ -105,7 +112,7 @@ const SyllabusParser = ({ onAddEvents }) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -191,8 +198,8 @@ const SyllabusParser = ({ onAddEvents }) => {
           : content;
         
         // Log API key status (without revealing the key)
-        console.log('API Key status:', process.env.REACT_APP_OPENAI_API_KEY ? 'API key exists' : 'API key is missing');
-        console.log('API Key length:', process.env.REACT_APP_OPENAI_API_KEY ? process.env.REACT_APP_OPENAI_API_KEY.length : 0);
+        console.log('API Key status:', apiKey ? 'API key exists' : 'API key is missing');
+        console.log('API Key length:', apiKey ? apiKey.length : 0);
         
         // Prepare request body
         const requestBody = {
@@ -218,7 +225,7 @@ const SyllabusParser = ({ onAddEvents }) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify(requestBody)
         });
@@ -316,8 +323,6 @@ const SyllabusParser = ({ onAddEvents }) => {
       reader.readAsText(file);
     });
   };
-  
-
   
 
 
@@ -542,6 +547,27 @@ const SyllabusParser = ({ onAddEvents }) => {
       <p>Upload your course syllabus (PDF or text file) to automatically extract important dates and add them to your calendar using OpenAI.</p>
       
       <form onSubmit={handleSubmit} className="syllabus-form">
+        <div className="api-key-container">
+          <label htmlFor="openai-api-key" className="api-key-label">
+            OpenAI API Key (required)
+          </label>
+          <input
+            type="password"
+            id="openai-api-key"
+            value={apiKey}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setApiKeyError(null);
+            }}
+            placeholder="Enter your OpenAI API key"
+            className="api-key-input"
+          />
+          {apiKeyError && <div className="api-key-error">{apiKeyError}</div>}
+          <div className="api-key-info">
+            Your API key is only used in your browser and is never stored on our servers.
+          </div>
+        </div>
+
         <div className="file-upload-container">
           <label htmlFor="syllabus-file" className="file-upload-label">
             <FontAwesomeIcon icon={faUpload} />
@@ -556,26 +582,20 @@ const SyllabusParser = ({ onAddEvents }) => {
           />
         </div>
         
-        <div className="button-group">
-          <button 
-            type="submit" 
-            className="parse-button"
-            disabled={isLoading || !file}
-          >
-            {isLoading ? (
-              <>
-                <FontAwesomeIcon icon={faSpinner} spin /> Processing...
-              </>
-            ) : 'Parse Syllabus'}
-          </button>
-          
-
-        </div>
+        <button 
+          type="submit" 
+          className="parse-button"
+          disabled={isLoading || !file}
+        >
+          {isLoading ? (
+            <>
+              <FontAwesomeIcon icon={faSpinner} spin /> Processing...
+            </>
+          ) : 'Parse Syllabus'}
+        </button>
       </form>
       
       {error && <div className="error-message">{error}</div>}
-      
-
       
       {extractedInfo && (
         <div className="parsed-data-container">
