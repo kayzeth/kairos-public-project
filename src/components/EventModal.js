@@ -13,36 +13,28 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
     startTime: '09:00',
     endTime: '10:00',
     allDay: false,
+    type: 'event',
+    studyHours: '',
     color: '#d2b48c'
   });
 
   useEffect(() => {
     if (event) {
-      const startDate = typeof event.start === 'string' 
-        ? event.start.split('T')[0] 
-        : format(event.start, 'yyyy-MM-dd');
+      const startDate = new Date(event.start);
+      const endDate = new Date(event.end);
       
-      const endDate = typeof event.end === 'string' 
-        ? event.end.split('T')[0] 
-        : format(event.end, 'yyyy-MM-dd');
-      
-      const startTime = typeof event.start === 'string' && event.start.includes('T')
-        ? event.start.split('T')[1].substring(0, 5)
-        : '09:00';
-      
-      const endTime = typeof event.end === 'string' && event.end.includes('T')
-        ? event.end.split('T')[1].substring(0, 5)
-        : '10:00';
-
       setFormData({
+        id: event.id,
         title: event.title || '',
         description: event.description || '',
         location: event.location || '',
-        start: startDate,
-        end: endDate,
-        startTime: startTime,
-        endTime: endTime,
+        start: format(startDate, 'yyyy-MM-dd'),
+        end: format(endDate, 'yyyy-MM-dd'),
+        startTime: format(startDate, 'HH:mm'),
+        endTime: format(endDate, 'HH:mm'),
         allDay: event.allDay || false,
+        type: event.type || 'event',
+        studyHours: event.studyHours || '',
         color: event.color || '#d2b48c'
       });
     }
@@ -50,28 +42,25 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+      // Clear study hours when changing from exam to non-exam type
+      ...(name === 'type' && value !== 'exam' ? { studyHours: '' } : {})
+    }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Manually check if required fields are empty
-    if (!formData.title.trim()) {
-      return; // Stop submission if title is empty
-    }
-  
-    onSave({
+    const cleanEventData = {
       ...formData,
-      id: event ? event.id : undefined
-    });
+      studyHours: formData.type === 'exam' && formData.studyHours ? Number(formData.studyHours) : undefined
+    };
+    onSave(cleanEventData);
   };
 
   const handleDelete = () => {
-    if (event && event.id) {
+    if (window.confirm('Are you sure you want to delete this event?')) {
       onDelete(event.id);
     }
   };
@@ -103,17 +92,17 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                <input
-                  type="date"
-                  id="start"
-                  name="start"
-                  className="form-input"
-                  value={formData.start}
-                  onChange={handleChange}
-                  required
-                  aria-label="Start"
-                  style={{ marginRight: '8px' }}
-                />
+                  <input
+                    type="date"
+                    id="start"
+                    name="start"
+                    className="form-input"
+                    value={formData.start}
+                    onChange={handleChange}
+                    required
+                    aria-label="Start"
+                    style={{ marginRight: '8px' }}
+                  />
                   {!formData.allDay && (
                     <input
                       type="time"
@@ -196,7 +185,50 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
                 style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
               />
             </div>
-            
+            <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <div style={{ marginRight: '12px', color: 'var(--text-light)', marginTop: '10px' }}>
+                <FontAwesomeIcon icon={faAlignLeft} />
+              </div>
+              <select
+                id="type"
+                name="type"
+                className="form-input"
+                value={formData.type}
+                onChange={handleChange}
+                style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
+              >
+                <option value="event">Regular Event</option>
+                <option value="exam">Exam</option>
+                <option value="assignment">Assignment</option>
+              </select>
+            </div>
+            {formData.type === 'exam' && (
+              <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <div style={{ marginRight: '12px', color: 'var(--text-light)', marginTop: '10px' }}>
+                  <FontAwesomeIcon icon={faAlignLeft} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  {formData.studyHours ? (
+                    <div className="study-hours-display">
+                      <label>Planned Study Hours</label>
+                      <p>{formData.studyHours} hours</p>
+                    </div>
+                  ) : (
+                    <p className="no-study-hours">No study hours planned yet</p>
+                  )}
+                  <input
+                    type="number"
+                    id="studyHours"
+                    name="studyHours"
+                    className="form-input"
+                    value={formData.studyHours}
+                    onChange={handleChange}
+                    placeholder="Add study hours"
+                    style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
               <label className="form-label" htmlFor="color" style={{ marginRight: '10px' }}>Color:</label>
               <input

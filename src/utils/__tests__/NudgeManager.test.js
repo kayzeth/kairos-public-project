@@ -1,15 +1,19 @@
-import { addDays, subDays } from 'date-fns';
+import { addDays } from 'date-fns';
 import NudgeManager from '../NudgeManager';
 
 describe('NudgeManager', () => {
   let nudgeManager;
   const baseDate = new Date('2025-03-14T12:00:00');
+  let mockStorage = {};
   
   beforeEach(() => {
+    mockStorage = {};
+    global.localStorage = {
+      getItem: (key) => mockStorage[key] ? mockStorage[key] : null,
+      setItem: (key, value) => { mockStorage[key] = value; },
+      clear: () => { mockStorage = {}; }
+    };
     nudgeManager = new NudgeManager();
-    // Mock window.confirm and window.prompt
-    global.confirm = jest.fn();
-    global.prompt = jest.fn();
   });
 
   const createMockExam = (id, title, daysFromNow) => ({
@@ -21,105 +25,164 @@ describe('NudgeManager', () => {
     allDay: false
   });
 
-  describe('analyzeUpcomingExams', () => {
-    it('should identify exams within the next two weeks', async () => {
+  describe('notification behavior', () => {
+    it('should show notifications only for exams without study hours', () => {
       const mockExams = [
-        createMockExam('1', 'Exam in 5 days', 5),
-        createMockExam('2', 'Exam in 10 days', 10),
-        createMockExam('3', 'Exam in 20 days', 20), // Should be filtered out
+        createMockExam('1', 'Exam 1', 5),
+        createMockExam('2', 'Exam 2', 7),
+        { ...createMockExam('3', 'Exam 3', 6), studyHours: 10 }
       ];
 
-      global.confirm.mockReturnValue(false); // Skip study hour prompts
-      const analysis = await nudgeManager.analyzeUpcomingExams(mockExams, baseDate);
-
-      expect(analysis).toHaveLength(2);
-      expect(analysis[0].examId).toBe('1');
-      expect(analysis[1].examId).toBe('2');
-    });
-
-    it('should calculate recommended daily study hours correctly', async () => {
-      const mockExams = [createMockExam('1', 'Test Exam', 5)];
-      
-      global.confirm.mockReturnValue(false); // Skip study hour prompts
-      const analysis = await nudgeManager.analyzeUpcomingExams(mockExams, baseDate);
-
-      expect(analysis[0].recommendedDailyHours).toBe(2); // 10 hours (default) / 5 days = 2 hours per day
-    });
-
-    it('should flag exams needing attention when study hours exceed available time', async () => {
-      const mockExams = [createMockExam('1', 'Urgent Exam', 3)];
-      
-      global.confirm.mockReturnValue(false); // Skip study hour prompts
-      nudgeManager.setStudyHours('1', 20); // Set high study hours
-      const analysis = await nudgeManager.analyzeUpcomingExams(mockExams, baseDate);
-
-      expect(analysis[0].needsAttention).toBe(true);
-    });
-
-    it('should handle user input for study hours', async () => {
-      const mockExams = [createMockExam('1', 'Input Test Exam', 7)];
-      
-      global.confirm.mockReturnValue(true);
-      global.prompt.mockReturnValue('15');
-      
-      const analysis = await nudgeManager.analyzeUpcomingExams(mockExams, baseDate);
-
-      expect(analysis[0].totalStudyHours).toBe(15);
-      expect(global.prompt).toHaveBeenCalled();
-    });
-
-    it('should use default hours when user provides invalid input', async () => {
-      const mockExams = [createMockExam('1', 'Invalid Input Exam', 7)];
-      
-      global.confirm.mockReturnValue(true);
-      global.prompt.mockReturnValue('invalid');
-      
-      const analysis = await nudgeManager.analyzeUpcomingExams(mockExams, baseDate);
-
-      expect(analysis[0].totalStudyHours).toBe(10); // Default hours
-    });
-  });
-
-  describe('setStudyHours', () => {
-    it('should store and retrieve study hours correctly', () => {
       nudgeManager.setStudyHours('1', 15);
-      expect(nudgeManager.getStudyHours('1')).toBe(15);
+      const needingAttention = nudgeManager.getExamsNeedingAttention(mockExams, baseDate);
+      
+      expect(needingAttention).toHaveLength(1);
+      expect(needingAttention[0].id).toBe('2');
     });
 
-    it('should return default hours for unset exams', () => {
-      expect(nudgeManager.getStudyHours('nonexistent')).toBe(10);
+    it('should handle dismissal and reappearance of notifications', () => {
+      const mockExams = [createMockExam('1', 'Exam 1', 5)];
+      const dismissTime = new Date(baseDate);
+
+      // Initially should show notification
+      expect(nudgeManager.getExamsNeedingAttention(mockExams, dismissTime)).toHaveLength(1);
+
+      // After dismissal, should not show notification
+      nudgeManager.dismissExam('1', dismissTime);
+      expect(nudgeManager.getExamsNeedingAttention(mockExams, dismissTime)).toHaveLength(0);
+
+      // After 4 hours, should show notification again
+      const fourHoursLater = new Date(dismissTime.getTime() + 4 * 60 * 60 * 1000);
+      expect(nudgeManager.getExamsNeedingAttention(mockExams, fourHoursLater)).toHaveLength(1);
+    });
+
+    it('should only show notifications for exams within two weeks', () => {
+      const mockExams = [
+        createMockExam('1', 'Soon Exam', 5),
+        createMockExam('2', 'Far Exam', 20)
+      ];
+
+      const needingAttention = nudgeManager.getExamsNeedingAttention(mockExams, baseDate);
+      
+      expect(needingAttention).toHaveLength(1);
+      expect(needingAttention[0].id).toBe('1');
     });
   });
 
-  describe('promptForStudyHours', () => {
-    it('should handle user declining to set hours', async () => {
-      const mockExams = [
-        createMockExam('1', 'Exam 1', 5),
-        createMockExam('2', 'Exam 2', 7)
-      ];
+  describe('UI integration', () => {
+    describe('EventModal data handling', () => {
+      it('should handle study hours from modal form submission', () => {
+        // Simulate form data from EventModal
+        const modalFormData = {
+          id: '1',
+          title: 'Test Exam',
+          type: 'exam',
+          start: addDays(baseDate, 5).toISOString().split('T')[0] + 'T14:00:00',
+          end: addDays(baseDate, 5).toISOString().split('T')[0] + 'T16:00:00',
+          studyHours: '5', // String from form input
+          allDay: false
+        };
 
-      global.confirm.mockReturnValue(false);
-      await nudgeManager.promptForStudyHours(mockExams);
+        // Test handling string study hours
+        nudgeManager.setStudyHours(modalFormData.id, modalFormData.studyHours);
+        const needingAttention = nudgeManager.getExamsNeedingAttention([modalFormData], baseDate);
+        expect(needingAttention).toHaveLength(0);
+        expect(nudgeManager.getStudyHours(modalFormData.id)).toBe(5);
+      });
 
-      expect(nudgeManager.getStudyHours('1')).toBe(10); // Default hours
-      expect(nudgeManager.getStudyHours('2')).toBe(10); // Default hours
+      it('should handle invalid study hours from modal', () => {
+        const modalFormData = {
+          id: '1',
+          title: 'Test Exam',
+          type: 'exam',
+          start: addDays(baseDate, 5).toISOString().split('T')[0] + 'T14:00:00',
+          end: addDays(baseDate, 5).toISOString().split('T')[0] + 'T16:00:00',
+          studyHours: 'invalid', // Invalid input
+          allDay: false
+        };
+
+        nudgeManager.setStudyHours(modalFormData.id, modalFormData.studyHours);
+        const needingAttention = nudgeManager.getExamsNeedingAttention([modalFormData], baseDate);
+        expect(needingAttention).toHaveLength(1); // Should show notification for invalid hours
+      });
+
+      it('should handle missing type property', () => {
+        const modalFormData = {
+          id: '1',
+          title: 'Test Event',
+          start: addDays(baseDate, 5).toISOString().split('T')[0] + 'T14:00:00',
+          end: addDays(baseDate, 5).toISOString().split('T')[0] + 'T16:00:00',
+          allDay: false
+          // type property missing
+        };
+
+        const needingAttention = nudgeManager.getExamsNeedingAttention([modalFormData], baseDate);
+        expect(needingAttention).toHaveLength(0); // Should ignore non-exam events
+      });
     });
 
-    it('should process multiple exams correctly', async () => {
-      const mockExams = [
-        createMockExam('1', 'Exam 1', 5),
-        createMockExam('2', 'Exam 2', 7)
-      ];
+    describe('StudyHoursNotification data handling', () => {
+      it('should handle study hours from notification panel', () => {
+        const exam = createMockExam('1', 'Test Exam', 5);
+        
+        // Initially should need attention
+        expect(nudgeManager.getExamsNeedingAttention([exam], baseDate)).toHaveLength(1);
 
-      global.confirm.mockReturnValue(true);
-      global.prompt
-        .mockReturnValueOnce('15')  // First exam
-        .mockReturnValueOnce('20'); // Second exam
+        // Simulate setting hours through notification panel
+        nudgeManager.setStudyHours(exam.id, 3);
+        expect(nudgeManager.getExamsNeedingAttention([exam], baseDate)).toHaveLength(0);
 
-      await nudgeManager.promptForStudyHours(mockExams);
+        // Verify hours persist in storage
+        const newNudgeManager = new NudgeManager(); // Create new instance to test persistence
+        expect(newNudgeManager.getExamsNeedingAttention([exam], baseDate)).toHaveLength(0);
+        expect(newNudgeManager.getStudyHours(exam.id)).toBe(3);
+      });
 
-      expect(nudgeManager.getStudyHours('1')).toBe(15);
-      expect(nudgeManager.getStudyHours('2')).toBe(20);
+      it('should sync study hours between notification panel and events', () => {
+        const exam = createMockExam('1', 'Test Exam', 5);
+        const events = [exam];
+
+        // Set hours through notification panel
+        nudgeManager.setStudyHours(exam.id, 4);
+
+        // Verify hours are reflected in event object
+        const updatedEvents = events.map(event => 
+          event.id === exam.id
+            ? { ...event, studyHours: nudgeManager.getStudyHours(event.id) }
+            : event
+        );
+
+        expect(updatedEvents[0].studyHours).toBe(4);
+        expect(nudgeManager.getExamsNeedingAttention(updatedEvents, baseDate)).toHaveLength(0);
+      });
+    });
+
+    describe('persistence behavior', () => {
+      it('should persist study hours across page reloads', () => {
+        const exam = createMockExam('1', 'Test Exam', 5);
+        
+        // Set study hours
+        nudgeManager.setStudyHours(exam.id, 5);
+        
+        // Simulate page reload by creating new NudgeManager instance
+        const newNudgeManager = new NudgeManager();
+        expect(newNudgeManager.getStudyHours(exam.id)).toBe(5);
+      });
+
+      it('should persist dismissal state across page reloads', () => {
+        const exam = createMockExam('1', 'Test Exam', 5);
+        
+        // Dismiss notification
+        nudgeManager.dismissExam(exam.id, baseDate);
+        
+        // Simulate page reload
+        const newNudgeManager = new NudgeManager();
+        expect(newNudgeManager.getExamsNeedingAttention([exam], baseDate)).toHaveLength(0);
+        
+        // Check reappearance after 4 hours
+        const fourHoursLater = new Date(baseDate.getTime() + 4 * 60 * 60 * 1000);
+        expect(newNudgeManager.getExamsNeedingAttention([exam], fourHoursLater)).toHaveLength(1);
+      });
     });
   });
 });

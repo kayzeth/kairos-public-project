@@ -6,69 +6,59 @@ import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';
 import EventModal from './EventModal';
+import StudyHoursNotification from './StudyHoursNotification';
 import NudgeManager from '../utils/NudgeManager';
 
-// Mock exam data for the next two weeks
-const initialExams = [
+// Initialize with some test exam events (without study hours)
+const initialEvents = [
   {
     id: '1',
-    title: 'CS1060 Midterm Exam',
-    description: 'Computer Science Midterm covering Algorithms and Data Structures',
-    start: '2025-03-21T14:00',
-    end: '2025-03-21T16:00',
-    allDay: false,
-    type: 'exam'
+    title: 'CS1060 Final Exam',
+    type: 'exam',
+    start: addDays(new Date(), 7).toISOString().split('T')[0] + 'T14:00:00',
+    end: addDays(new Date(), 7).toISOString().split('T')[0] + 'T16:00:00',
+    description: 'Computer Science Final Examination',
+    allDay: false
   },
   {
     id: '2',
-    title: 'MATH2200 Final Exam',
-    description: 'Linear Algebra Final Examination',
-    start: '2025-03-25T10:00',
-    end: '2025-03-25T12:00',
-    allDay: false,
-    type: 'exam'
-  },
-  {
-    id: '3',
-    title: 'PHYS1140 Midterm',
-    description: 'Physics Midterm Examination - Mechanics and Waves',
-    start: '2025-03-28T15:00',
-    end: '2025-03-28T17:00',
-    allDay: false,
-    type: 'exam'
+    title: 'MATH2200 Midterm',
+    type: 'exam',
+    start: addDays(new Date(), 10).toISOString().split('T')[0] + 'T10:00:00',
+    end: addDays(new Date(), 10).toISOString().split('T')[0] + 'T12:00:00',
+    description: 'Linear Algebra Midterm',
+    allDay: false
   }
 ];
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('month'); // 'month', 'week', or 'day'
-  const [events, setEvents] = useState(initialExams);
+  const [view, setView] = useState('month');
+  const [events, setEvents] = useState(initialEvents);
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [nudgeManager] = useState(() => new NudgeManager());
-  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [examsNeedingHours, setExamsNeedingHours] = useState([]);
 
-  // Effect to analyze exams whenever events change
   useEffect(() => {
-    // Delay the analysis to allow the UI to render first
-    const timer = setTimeout(async () => {
-      try {
-        const analysis = await nudgeManager.analyzeUpcomingExams(events, currentDate);
-        console.log('Current Exam Analysis:', {
-          totalExams: analysis.length,
-          examsNeedingAttention: analysis.filter(exam => exam.needsAttention).length,
-          detailedAnalysis: analysis
-        });
-        setAnalysisComplete(true);
-      } catch (error) {
-        console.error('Error analyzing exams:', error);
-        setAnalysisComplete(true);
-      }
-    }, 1000); // Delay of 1 second
+    const checkExams = () => {
+      const now = new Date();
+      const exams = nudgeManager.getExamsNeedingAttention(events, now);
+      console.log('Checking exams:', { events, examsNeedingAttention: exams }); // Debug log
+      setExamsNeedingHours(exams);
+    };
 
-    return () => clearTimeout(timer);
-  }, [events, currentDate, nudgeManager]);
+    // Clear any existing study hours from localStorage
+    localStorage.removeItem('nudgeManager');
+    
+    // Initial check
+    checkExams();
+    
+    // Set up periodic checks every minute
+    const interval = setInterval(checkExams, 60000);
+    return () => clearInterval(interval);
+  }, [events, nudgeManager]);
 
   const nextHandler = () => {
     if (view === 'month') {
@@ -106,29 +96,40 @@ const Calendar = () => {
   };
 
   const saveEvent = (eventData) => {
-    // Remove any existing id from eventData
     const { id: _, ...cleanEventData } = eventData;
     
     if (selectedEvent) {
-      // Edit existing event
       const updatedEvents = events.map(event => 
         event.id === selectedEvent.id ? { 
           ...event, 
           ...cleanEventData,
+          // Keep existing study hours if not being updated
+          studyHours: cleanEventData.studyHours !== undefined ? cleanEventData.studyHours : event.studyHours,
           start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
-          end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
+          end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`,
+          type: cleanEventData.type || event.type // Ensure type property is present
         } : event
       );
       setEvents(updatedEvents);
+
+      // Update NudgeManager if study hours were set
+      if (cleanEventData.studyHours !== undefined) {
+        nudgeManager.setStudyHours(selectedEvent.id, cleanEventData.studyHours);
+      }
     } else {
-      // Add new event
       const newEvent = {
         id: Date.now().toString(),
         ...cleanEventData,
         start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
-        end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
+        end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`,
+        type: cleanEventData.type || 'event' // Ensure type property is present
       };
       setEvents([...events, newEvent]);
+
+      // Set study hours in NudgeManager if provided for new exam
+      if (newEvent.type === 'exam' && cleanEventData.studyHours !== undefined) {
+        nudgeManager.setStudyHours(newEvent.id, cleanEventData.studyHours);
+      }
     }
     closeModal();
   };
@@ -141,6 +142,28 @@ const Calendar = () => {
   const editEvent = (event) => {
     setSelectedEvent(event);
     setShowModal(true);
+  };
+
+  const handleSetStudyHours = (examId, hours) => {
+    nudgeManager.setStudyHours(examId, hours);
+    setEvents(prevEvents =>
+      prevEvents.map(event =>
+        event.id === examId
+          ? { ...event, studyHours: hours }
+          : event
+      )
+    );
+    setExamsNeedingHours(prevExams => 
+      prevExams.filter(exam => exam.id !== examId)
+    );
+  };
+
+  const handleDismissExam = (examId) => {
+    const now = new Date();
+    nudgeManager.dismissExam(examId, now);
+    setExamsNeedingHours(prevExams => 
+      prevExams.filter(exam => exam.id !== examId)
+    );
   };
 
   const renderView = () => {
@@ -206,6 +229,7 @@ const Calendar = () => {
               Month
             </button>
           </div>
+
           <button className="nav-button" onClick={prevHandler}>
             <FontAwesomeIcon icon={faChevronLeft} />
           </button>
@@ -220,7 +244,9 @@ const Calendar = () => {
           </button>
         </div>
       </div>
+
       {renderView()}
+
       {showModal && (
         <EventModal 
           onClose={closeModal}
@@ -228,6 +254,14 @@ const Calendar = () => {
           onDelete={deleteEvent}
           event={selectedEvent}
           selectedDate={selectedDate}
+        />
+      )}
+
+      {examsNeedingHours.length > 0 && (
+        <StudyHoursNotification
+          exams={examsNeedingHours}
+          onSetHours={handleSetStudyHours}
+          onDismiss={handleDismissExam}
         />
       )}
     </div>

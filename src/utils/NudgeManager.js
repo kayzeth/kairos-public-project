@@ -1,105 +1,123 @@
-import { addDays, differenceInDays, parseISO, isWithinInterval } from 'date-fns';
+import { addDays } from 'date-fns';
 
 class NudgeManager {
   constructor() {
-    this.defaultStudyHours = 10;
-    this.studyPlans = new Map();
-  }
-
-  // Prompts user for study hours for each exam
-  async promptForStudyHours(exams) {
-    // Show a single initial prompt explaining what's about to happen
-    const proceed = window.confirm(
-      `You have ${exams.length} upcoming exam(s) that need study hour allocation. Would you like to set study hours now?`
+    // Load saved data from localStorage
+    const savedData = localStorage.getItem('nudgeManager');
+    const data = savedData ? JSON.parse(savedData) : { studyHours: {}, dismissedExams: {} };
+    
+    this.studyHours = new Map(Object.entries(data.studyHours));
+    this.dismissedExams = new Map(
+      Object.entries(data.dismissedExams).map(([key, value]) => [key, new Date(value)])
     );
-
-    if (!proceed) {
-      console.log('Using default study hours for all exams');
-      exams.forEach(exam => {
-        this.setStudyHours(exam.id, this.defaultStudyHours);
-      });
-      return;
-    }
-
-    for (const exam of exams) {
-      const answer = prompt(
-        `${exam.title} (${new Date(exam.start).toLocaleDateString()})\n` +
-        `How many hours would you like to study? (Default: ${this.defaultStudyHours})\n` +
-        `Press Cancel to use default.`
-      );
-      
-      if (answer === null) {
-        console.log(`Using default of ${this.defaultStudyHours} hours for ${exam.title}`);
-        this.setStudyHours(exam.id, this.defaultStudyHours);
-        continue;
-      }
-
-      const hours = parseInt(answer, 10);
-      if (!isNaN(hours) && hours > 0) {
-        this.setStudyHours(exam.id, hours);
-        console.log(`Set ${hours} study hours for ${exam.title}`);
-      } else {
-        console.log(`Invalid input. Using default of ${this.defaultStudyHours} hours for ${exam.title}`);
-        this.setStudyHours(exam.id, this.defaultStudyHours);
-      }
-    }
   }
 
-  // Analyze upcoming exams within the next two weeks
+  // Save current state to localStorage
+  _saveToStorage() {
+    const data = {
+      studyHours: Object.fromEntries(this.studyHours),
+      dismissedExams: Object.fromEntries(
+        Array.from(this.dismissedExams).map(([key, value]) => [key, value.toISOString()])
+      )
+    };
+    localStorage.setItem('nudgeManager', JSON.stringify(data));
+  }
+
+  getExamsNeedingAttention(events, currentDate = new Date()) {
+    return events.filter(event => {
+      if (event.type !== 'exam') return false;
+      
+      // If study hours are already set (either in storage or event), don't show notification
+      const storedHours = this.studyHours.get(event.id);
+      const eventHours = event.studyHours;
+      const hasValidHours = this._isValidStudyHours(storedHours) || this._isValidStudyHours(eventHours);
+      if (hasValidHours) return false;
+      
+      // Check if exam is within next 2 weeks
+      const examDate = new Date(event.start);
+      const twoWeeksFromNow = addDays(currentDate, 14);
+      if (examDate <= currentDate || examDate > twoWeeksFromNow) return false;
+
+      return this.shouldShowNotification(event.id, currentDate);
+    });
+  }
+
   async analyzeUpcomingExams(events, currentDate = new Date()) {
     const twoWeeksFromNow = addDays(currentDate, 14);
-    
-    // Filter for exam events in the next two weeks
+
     const upcomingExams = events.filter(event => {
       if (event.type !== 'exam') return false;
       
-      const examDate = parseISO(event.start);
-      return isWithinInterval(examDate, {
-        start: currentDate,
-        end: twoWeeksFromNow
-      });
+      const examDate = new Date(event.start);
+      return examDate > currentDate && examDate <= twoWeeksFromNow;
     });
 
-    // Sort exams by date
-    upcomingExams.sort((a, b) => parseISO(a.start) - parseISO(b.start));
+    return upcomingExams.map(exam => {
+      const examDate = new Date(exam.start);
+      const daysUntilExam = Math.ceil((examDate - currentDate) / (1000 * 60 * 60 * 24));
+      const totalStudyHours = this.getStudyHours(exam.id) || exam.studyHours || 0;
+      const recommendedDailyHours = Math.ceil(totalStudyHours / daysUntilExam);
+      const needsAttention = recommendedDailyHours > 4;
 
-    // Prompt for study hours if not already set
-    const examsNeedingHours = upcomingExams.filter(exam => !this.studyPlans.has(exam.id));
-    if (examsNeedingHours.length > 0) {
-      await this.promptForStudyHours(examsNeedingHours);
-    }
-
-    const analysisResult = upcomingExams.map(exam => {
-      const examDate = parseISO(exam.start);
-      const daysUntilExam = differenceInDays(examDate, currentDate);
-      const studyHours = this.studyPlans.get(exam.id) || this.defaultStudyHours;
-      
-      // Calculate recommended daily study hours
-      const recommendedDailyHours = Math.ceil(studyHours / daysUntilExam);
-      
       return {
         examId: exam.id,
-        examTitle: exam.title,
         daysUntilExam,
-        totalStudyHours: studyHours,
+        totalStudyHours,
         recommendedDailyHours,
-        examDate: exam.start,
-        needsAttention: daysUntilExam <= 7 && studyHours > (daysUntilExam * 2)
+        needsAttention,
+        lastDismissed: this.dismissedExams.get(exam.id)
       };
     });
-
-    console.log('Nudge Analysis Result:', analysisResult);
-    return analysisResult;
   }
 
-  // Set custom study hours for a specific exam
-  setStudyHours(examId, hours) {
-    this.studyPlans.set(examId, hours);
-  }
-
-  // Get study hours for a specific exam
   getStudyHours(examId) {
-    return this.studyPlans.get(examId) || this.defaultStudyHours;
+    const hours = this.studyHours.get(examId);
+    return this._isValidStudyHours(hours) ? hours : 0;
+  }
+
+  setStudyHours(examId, hours) {
+    // Validate and convert hours to a number
+    const validHours = this._validateStudyHours(hours);
+    if (validHours !== null) {
+      this.studyHours.set(examId, validHours);
+      this.dismissedExams.delete(examId); // Clear dismissed status when valid hours are set
+    } else {
+      // If hours are invalid, remove them so notification will show
+      this.studyHours.delete(examId);
+    }
+    this._saveToStorage();
+  }
+
+  dismissExam(examId, dismissTime = new Date()) {
+    this.dismissedExams.set(examId, dismissTime);
+    this._saveToStorage();
+  }
+
+  shouldShowNotification(examId, currentDate = new Date()) {
+    const lastDismissed = this.dismissedExams.get(examId);
+    if (!lastDismissed) return true;
+
+    const hoursSinceLastDismiss = Math.floor((currentDate.getTime() - lastDismissed.getTime()) / (1000 * 60 * 60));
+    return hoursSinceLastDismiss >= 4; // Show again after 4 hours
+  }
+
+  // Private helper methods for validation
+  _isValidStudyHours(hours) {
+    return typeof hours === 'number' && !isNaN(hours) && hours > 0;
+  }
+
+  _validateStudyHours(hours) {
+    // Handle string input from forms
+    if (typeof hours === 'string') {
+      hours = parseFloat(hours);
+    }
+    
+    // Validate the number
+    if (typeof hours === 'number' && !isNaN(hours) && hours > 0) {
+      return hours;
+    }
+    
+    return null;
   }
 }
 

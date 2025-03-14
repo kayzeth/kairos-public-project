@@ -1,0 +1,130 @@
+.study-hours-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 360px;
+  max-height: calc(100vh - 40px);
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid #e1e4e8;
+}
+
+.notification-header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.notification-header h3 {
+  margin: 0 0 8px 0;
+  color: #24292e;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.notification-header p {
+  margin: 0;
+  color: #586069;
+  font-size: 14px;
+}
+
+.exam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exam-item {
+  background-color: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.exam-info {
+  margin-bottom: 12px;
+}
+
+.exam-info h4 {
+  margin: 0 0 4px 0;
+  color: #24292e;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.exam-info p {
+  margin: 0;
+  color: #586069;
+  font-size: 12px;
+}
+
+.exam-actions {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.exam-actions input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e1e4e8;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #24292e;
+  background-color: #ffffff;
+}
+
+.exam-actions input:focus {
+  outline: none;
+  border-color: #0366d6;
+  box-shadow: 0 0 0 2px rgba(3, 102, 214, 0.2);
+}
+
+.exam-actions button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.set-hours-btn {
+  background-color: #2ea44f;
+  color: #ffffff;
+}
+
+.set-hours-btn:hover {
+  background-color: #2c974b;
+}
+
+.remind-later-btn {
+  background-color: #fafbfc;
+  border: 1px solid #e1e4e8;
+  color: #24292e;
+}
+
+.remind-later-btn:hover {
+  background-color: #f3f4f6;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .study-hours-notification {
+    width: calc(100% - 32px);
+    top: 16px;
+    right: 16px;
+    max-height: calc(100vh - 32px);
+  }
+
+  .exam-actions {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
