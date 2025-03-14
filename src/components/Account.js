@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
-import { faFileImport, faFileExport, faSync, faCheck, faTimes, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
+import { faSync, faCheck, faTimes, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
 import googleCalendarService from '../services/googleCalendarService';
 import { isConfigured } from '../config/googleCalendarConfig';
 
@@ -90,92 +90,6 @@ const Account = () => {
       setSyncStatus({
         status: 'error',
         message: 'Failed to sign out from Google. Please try again.'
-      });
-    }
-  };
-
-  // Import events from Google Calendar
-  const importFromGoogleCalendar = async () => {
-    if (!isSignedIn) {
-      handleSignIn();
-      return;
-    }
-
-    setSyncStatus({ status: 'loading', message: 'Importing events from Google Calendar...' });
-
-    try {
-      // Get events from Google Calendar (last 30 days to next 30 days)
-      const now = new Date();
-      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      const oneMonthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
-      
-      const events = await googleCalendarService.importEvents(oneMonthAgo, oneMonthFromNow);
-      
-      // Process and store the events (you would need to implement this part)
-      // This is a placeholder for where you would store the events in your app's state
-      console.log('Imported events:', events);
-      
-      // For demonstration purposes, we'll just set a success message
-      setSyncStatus({
-        status: 'success',
-        message: `Successfully imported ${events.length} events from Google Calendar`
-      });
-      
-      setTimeout(() => {
-        setSyncStatus({ status: 'idle', message: '' });
-      }, 5000);
-      
-    } catch (error) {
-      console.error('Error importing events from Google Calendar:', error);
-      setSyncStatus({
-        status: 'error',
-        message: 'Failed to import events from Google Calendar'
-      });
-    }
-  };
-
-  // Export events to Google Calendar
-  const exportToGoogleCalendar = async () => {
-    if (!isSignedIn) {
-      handleSignIn();
-      return;
-    }
-
-    setSyncStatus({ status: 'loading', message: 'Exporting events to Google Calendar...' });
-
-    try {
-      // This is a placeholder for where you would get events from your app's state
-      // For demonstration purposes, we'll create a sample event
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      
-      const event = {
-        title: 'Kairos Test Event',
-        description: 'A test event created by Kairos Calendar App',
-        location: 'Online',
-        start: tomorrow.toISOString(),
-        end: new Date(tomorrow.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour later
-        allDay: false,
-        color: '#d2b48c'
-      };
-
-      const result = await googleCalendarService.exportEvent(event);
-
-      console.log('Event created:', result.htmlLink);
-      setSyncStatus({
-        status: 'success',
-        message: 'Successfully exported event to Google Calendar'
-      });
-      
-      setTimeout(() => {
-        setSyncStatus({ status: 'idle', message: '' });
-      }, 5000);
-      
-    } catch (error) {
-      console.error('Error exporting events to Google Calendar:', error);
-      setSyncStatus({
-        status: 'error',
-        message: 'Failed to export events to Google Calendar'
       });
     }
   };
@@ -316,18 +230,6 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
                 </div>
                 
                 <div className="google-actions">
-                  <button 
-                    className="button button-secondary"
-                    onClick={importFromGoogleCalendar}
-                  >
-                    <FontAwesomeIcon icon={faFileImport} /> Import Events
-                  </button>
-                  <button 
-                    className="button button-secondary"
-                    onClick={exportToGoogleCalendar}
-                  >
-                    <FontAwesomeIcon icon={faFileExport} /> Export Events
-                  </button>
                   <button 
                     className="button button-primary"
                     onClick={syncWithGoogleCalendar}

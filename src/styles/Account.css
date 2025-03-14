@@ -1,13 +1,42 @@
 .account-container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: var(--spacing-lg);
+  height: calc(100vh - 100px); /* Adjust based on your header/navigation height */
+  overflow-y: hidden;
+  padding: 0px 20px 20px 20px;
+  position: relative;
+  scrollbar-gutter: stable both-edges;
+}
+
+.account-container:hover {
+  overflow-y: auto;
+}
+
+.account-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.account-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.account-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.account-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .account-title {
   font-size: 2rem;
   margin-bottom: var(--spacing-lg);
   color: var(--text-dark);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--background-color);
+  margin: -20px -20px 20px -20px; /* Negative margin to cover container padding */
+  padding-left: 20px; /* Restore left padding */
 }
 
 .account-section {

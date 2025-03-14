@@ -107,6 +107,7 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  height: 100%;
 }
 
 .calendar-header {
@@ -209,7 +210,10 @@ body {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(auto-fit, 1fr);
   border-bottom: 1px solid var(--border-color);
+  flex: 1; /* Each grid will take equal space */
+  min-height: 0; /* Important for flex children to shrink properly */
 }
 
 .calendar-day-names {
