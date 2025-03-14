@@ -16,7 +16,7 @@ const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(false);
-  const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
+  const [, setSyncStatus] = useState({ status: 'idle', message: '' });
 
   const nextHandler = () => {
     if (view === 'month') {

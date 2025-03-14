@@ -1,6 +1,16 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+
+// Mock react-router-dom before importing Header
+jest.mock('react-router-dom', () => ({
+  Link: ({ children, to, ...rest }) => (
+    <a href={to} data-testid="mock-link" {...rest}>
+      {children}
+    </a>
+  )
+}));
+
 import Header from '../Header';
 
 describe('Header Component', () => {

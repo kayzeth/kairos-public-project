@@ -182,8 +182,8 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
               )}
             </div>
             <div className="profile-details">
-              <h3>{user?.name || 'Kairos User'}</h3>
-              <p>{user?.email || 'Sign in to sync your calendar'}</p>
+              <h3 data-testid="user-name">{user?.name || 'Kairos User'}</h3>
+              <p data-testid="user-email">{user?.email || 'Sign in to sync your calendar'}</p>
             </div>
           </div>
         </div>
@@ -219,8 +219,8 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
                     />
                   )}
                   <div className="user-info">
-                    <h3>{user?.name}</h3>
-                    <p>{user?.email}</p>
+                    <h3 data-testid="auth-user-name">{user?.name}</h3>
+                    <p data-testid="auth-user-email">{user?.email}</p>
                   </div>
                 </div>
                 
@@ -233,6 +233,7 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
                   <button 
                     className="button button-primary"
                     onClick={syncWithGoogleCalendar}
+                    data-testid="sync-button"
                   >
                     <FontAwesomeIcon icon={faSync} /> Sync Calendar
                   </button>
@@ -258,7 +259,7 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
               } 
               className={`status-icon ${syncStatus.status === 'loading' ? 'fa-spin' : ''}`}
             />
-            <span>{syncStatus.message}</span>
+            <span data-testid="sync-message">{syncStatus.message}</span>
           </div>
         )}
         
