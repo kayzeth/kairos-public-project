@@ -51,7 +51,13 @@
   opacity: 0;
 }
 
-.parse-button {
+.button-group {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.parse-button, .parse-pdf-button {
   padding: 12px 24px;
   background-color: #4285F4;
   color: white;
@@ -66,13 +72,21 @@
   gap: 8px;
 }
 
-.parse-button:hover {
+.parse-button:hover, .parse-pdf-button:hover {
   background-color: #3367d6;
 }
 
-.parse-button:disabled {
+.parse-button:disabled, .parse-pdf-button:disabled {
   background-color: #b3b3b3;
   cursor: not-allowed;
+}
+
+.parse-pdf-button {
+  background-color: #4a6fa5;
+}
+
+.parse-pdf-button:hover {
+  background-color: #3a5a8a;
 }
 
 .error-message {
@@ -198,6 +212,50 @@
   gap: 10px;
   margin-top: 10px;
   padding-left: 24px;
+}
+
+.raw-pdf-container {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.raw-pdf-text {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 10px;
+}
+
+.pdf-text-note {
+  font-size: 14px;
+  color: #666;
+  font-style: italic;
+}
+
+.pdf-preview-container {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.pdf-preview-frame {
+  width: 100%;
+  height: 600px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
 }
 
 .repeat-until-option label {

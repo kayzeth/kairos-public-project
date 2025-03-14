@@ -1,5 +1,5 @@
 import React from 'react';
-import { format, startOfWeek, endOfWeek, addDays, addHours, startOfDay, isSameDay, parseISO, isAfter, isBefore, parse } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addDays, addHours, startOfDay, isSameDay, parseISO, isAfter, isBefore } from 'date-fns';
 
 const WeekView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 }); // Monday

@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUpload, faSpinner, faCalendarPlus } from '@fortawesome/free-solid-svg-icons';
+// Import pdf.js with specific version
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import 'pdfjs-dist/legacy/build/pdf.worker.entry';
 // We'll use the fetch API directly instead of the OpenAI library
 
 
@@ -38,10 +41,29 @@ const SyllabusParser = ({ onAddEvents }) => {
       let content;
       
       if (file.type === 'application/pdf') {
-        // For PDF files, first try to extract text
+        // For PDF files, extract text using pdf.js
         try {
-          content = await readFileAsText(file);
-          console.log('Successfully extracted text from PDF, processing as text file...');
+          // Convert file to ArrayBuffer
+          const arrayBuffer = await file.arrayBuffer();
+          
+          // Load PDF document
+          const loadingTask = pdfjsLib.getDocument(arrayBuffer);
+          const pdf = await loadingTask.promise;
+          
+          // Get total number of pages
+          const numPages = pdf.numPages;
+          let fullText = '';
+          
+          // Extract text from each page
+          for (let i = 1; i <= numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            fullText += pageText + '\n';
+          }
+          
+          content = fullText;
+          console.log('PDF text extracted successfully for API processing');
         } catch (error) {
           console.error('Failed to extract text from PDF:', error);
           setError('Failed to extract text from PDF. Please try a different file format.');
@@ -130,6 +152,7 @@ const SyllabusParser = ({ onAddEvents }) => {
               // If the string contains escaped characters, try to clean it up
               if (jsonString.includes('\\n')) {
                 // This is a JSON string with escape characters
+                // eslint-disable-next-line no-eval
                 parsedData = JSON.parse(JSON.stringify(eval('(' + jsonString + ')')));
               } else {
                 throw directParseError; // Re-throw if not the escape character issue
@@ -236,6 +259,7 @@ const SyllabusParser = ({ onAddEvents }) => {
               // If the string contains escaped characters, try to clean it up
               if (content.includes('\\n')) {
                 // This is a JSON string with escape characters
+                // eslint-disable-next-line no-eval
                 parsedData = JSON.parse(JSON.stringify(eval('(' + content + ')')));
               } else {
                 throw directParseError; // Re-throw if not the escape character issue
@@ -293,26 +317,9 @@ const SyllabusParser = ({ onAddEvents }) => {
     });
   };
   
-  // Helper function to read file as base64
-  const readFileAsBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const content = e.target.result;
-          if (!content) {
-            reject(new Error('Could not read file content as base64'));
-            return;
-          }
-          resolve(content);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = (e) => reject(new Error('Error reading file'));
-      reader.readAsDataURL(file);
-    });
-  };
+
+  
+
 
   // Helper function to get instructor name from different formats
   const getInstructorName = (instructor) => {
@@ -549,20 +556,26 @@ const SyllabusParser = ({ onAddEvents }) => {
           />
         </div>
         
-        <button 
-          type="submit" 
-          className="parse-button"
-          disabled={isLoading || !file}
-        >
-          {isLoading ? (
-            <>
-              <FontAwesomeIcon icon={faSpinner} spin /> Processing...
-            </>
-          ) : 'Parse Syllabus'}
-        </button>
+        <div className="button-group">
+          <button 
+            type="submit" 
+            className="parse-button"
+            disabled={isLoading || !file}
+          >
+            {isLoading ? (
+              <>
+                <FontAwesomeIcon icon={faSpinner} spin /> Processing...
+              </>
+            ) : 'Parse Syllabus'}
+          </button>
+          
+
+        </div>
       </form>
       
       {error && <div className="error-message">{error}</div>}
+      
+
       
       {extractedInfo && (
         <div className="parsed-data-container">
