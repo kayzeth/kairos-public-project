@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -6,6 +6,7 @@ import MonthView from './MonthView';
 import WeekView from './WeekView';
 import DayView from './DayView';
 import EventModal from './EventModal';
+import googleCalendarService from '../services/googleCalendarService';
 
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -14,6 +15,9 @@ const Calendar = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(false);
+  // Now we store both the state value and its setter
+  const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
 
   const nextHandler = () => {
     if (view === 'month') {
@@ -50,36 +54,157 @@ const Calendar = () => {
     setSelectedEvent(null);
   };
 
-  const saveEvent = (eventData) => {
+  // Import events from Google Calendar
+  const importGoogleCalendarEvents = useCallback(async () => {
+    try {
+      setSyncStatus({ status: 'loading', message: 'Importing events from Google Calendar...' });
+        
+      // Get events from the last month to the next month
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      const oneMonthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        
+      const googleEvents = await googleCalendarService.importEvents(oneMonthAgo, oneMonthFromNow);
+        
+      // Filter out any Google events that might already be in our events array
+      const existingGoogleEventIds = events
+        .filter(event => event.googleEventId)
+        .map(event => event.googleEventId);
+        
+      const newGoogleEvents = googleEvents.filter(
+        event => !existingGoogleEventIds.includes(event.googleEventId)
+      );
+        
+      // Add the new Google events to our events array
+      setEvents(prevEvents => [...prevEvents, ...newGoogleEvents]);
+        
+      setSyncStatus({ 
+        status: 'success', 
+        message: `Successfully imported ${newGoogleEvents.length} events from Google Calendar` 
+      });
+        
+      // Clear the success message after a few seconds
+      setTimeout(() => {
+        setSyncStatus({ status: 'idle', message: '' });
+      }, 3000);
+        
+    } catch (error) {
+      console.error('Error importing Google Calendar events:', error);
+      setSyncStatus({ 
+        status: 'error', 
+        message: 'Failed to import events from Google Calendar' 
+      });
+        
+      // Clear the error message after a few seconds
+      setTimeout(() => {
+        setSyncStatus({ status: 'idle', message: '' });
+      }, 3000);
+    }
+  }, [events, setEvents, setSyncStatus]);
+
+  // Check if Google Calendar is connected when component mounts
+  useEffect(() => {
+    const checkGoogleCalendarConnection = async () => {
+      try {
+        await googleCalendarService.initialize();
+        const isSignedIn = googleCalendarService.isSignedIn();
+        setIsGoogleCalendarConnected(isSignedIn);
+        
+        // Add listener for sign-in state changes
+        googleCalendarService.addSignInListener((isSignedIn) => {
+          setIsGoogleCalendarConnected(isSignedIn);
+        });
+        
+        // If signed in, import events from Google Calendar
+        if (isSignedIn) {
+          importGoogleCalendarEvents();
+        }
+      } catch (error) {
+        console.error('Error checking Google Calendar connection:', error);
+      }
+    };
+    
+    checkGoogleCalendarConnection();
+  }, [importGoogleCalendarEvents]);
+
+  // (The second useEffect for checking connection appears to be duplicated;
+  // you may consider removing it if it's not needed.)
+
+  const saveEvent = async (eventData) => {
     // Remove any existing id from eventData
     const { id: _, ...cleanEventData } = eventData;
-    
-    if (selectedEvent) {
-      // Edit existing event
-      const updatedEvents = events.map(event => 
-        event.id === selectedEvent.id ? { 
-          ...event, 
+
+    try {
+      if (selectedEvent) {
+        // Edit existing event
+        const updatedEvents = events.map(event => 
+          event.id === selectedEvent.id ? { 
+            ...cleanEventData, 
+            ...eventData,
+            start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+            end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
+          } : event
+        );
+        setEvents(updatedEvents);
+        
+        // If this event was from Google Calendar and we're connected, update it there too
+        if (isGoogleCalendarConnected && selectedEvent.googleEventId) {
+          try {
+            await googleCalendarService.updateEvent({
+              ...cleanEventData,
+              googleEventId: selectedEvent.googleEventId,
+              start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
+              end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
+            });
+          } catch (error) {
+            console.error('Error updating event in Google Calendar:', error);
+          }
+        }
+      } else {
+        // Add new event
+        const newEvent = {
+          id: Date.now().toString(),
           ...cleanEventData,
           start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
           end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
-        } : event
-      );
-      setEvents(updatedEvents);
-    } else {
-      // Add new event
-      const newEvent = {
-        id: Date.now().toString(),
-        ...cleanEventData,
-        start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
-        end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`
-      };
-      setEvents([...events, newEvent]);
+        };
+        
+        // If connected to Google Calendar, also create the event there
+        if (isGoogleCalendarConnected) {
+          try {
+            const googleEvent = await googleCalendarService.exportEvent(newEvent);
+            // Add the Google Calendar event ID to our event
+            newEvent.googleEventId = googleEvent.id;
+            newEvent.source = 'google';
+          } catch (error) {
+            console.error('Error creating event in Google Calendar:', error);
+          }
+        }
+        
+        setEvents([...events, newEvent]);
+      }
+    } catch (error) {
+      console.error('Error saving event:', error);
     }
+    
     closeModal();
   };
 
-  const deleteEvent = (id) => {
+  const deleteEvent = async (id) => {
+    const eventToDelete = events.find(event => event.id === id);
+    
+    // Remove from our local events
     setEvents(prevEvents => prevEvents.filter(event => event.id !== id));
+    
+    // If this event was from Google Calendar and we're connected, delete it there too
+    if (isGoogleCalendarConnected && eventToDelete && eventToDelete.googleEventId) {
+      try {
+        await googleCalendarService.deleteEvent(eventToDelete);
+      } catch (error) {
+        console.error('Error deleting event from Google Calendar:', error);
+      }
+    }
+    
     closeModal();
   };
 
@@ -124,6 +249,12 @@ const Calendar = () => {
 
   return (
     <div className="calendar-container">
+      {/* Render sync status as a popup banner if not idle */}
+      {syncStatus.status !== 'idle' && (
+        <div className={`sync-banner sync-${syncStatus.status}`} data-testid="sync-status">
+          {syncStatus.message}
+        </div>
+      )}
       <div className="calendar-header">
         <div className="calendar-title">
           {view === 'month' && format(currentDate, 'MMMM yyyy')}
