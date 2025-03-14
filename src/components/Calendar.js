@@ -8,10 +8,10 @@ import DayView from './DayView';
 import EventModal from './EventModal';
 import googleCalendarService from '../services/googleCalendarService';
 
-const Calendar = () => {
+const Calendar = ({ initialEvents = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month'); // 'month', 'week', or 'day'
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(initialEvents);
   const [showModal, setShowModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
