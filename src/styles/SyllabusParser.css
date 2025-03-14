@@ -158,3 +158,138 @@
   color: #666;
   font-size: 0.9em;
 }
+
+/* Styles for the Add to Calendar section */
+.add-to-calendar-section {
+  margin-top: 25px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.calendar-options {
+  width: 100%;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.repeat-option {
+  margin-bottom: 10px;
+}
+
+.repeat-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.repeat-until-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding-left: 24px;
+}
+
+.repeat-until-option label {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.repeat-until-option input[type="date"] {
+  padding: 6px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.add-to-calendar-button {
+  padding: 12px 24px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+
+.add-to-calendar-button:hover {
+  background-color: #218838;
+}
+
+.calendar-events-count {
+  margin-top: 10px;
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* Styles for JSON response display */
+.json-response-section {
+  margin-top: 30px;
+}
+
+.json-response-container {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.json-response {
+  background-color: #f8f9fa;
+  padding: 15px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 0;
+  color: #212529;
+}
+
+/* Style for the details/summary element */
+details {
+  margin-top: 10px;
+}
+
+summary {
+  padding: 10px;
+  background-color: #f1f1f1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #555;
+  transition: background-color 0.2s ease;
+}
+
+summary:hover {
+  background-color: #e8e8e8;
+}
+
+.json-response-note {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #f0f8ff;
+  border-radius: 4px;
+  border-left: 3px solid #4285F4;
+}
+
+.json-response-note p {
+  margin: 0;
+  color: #555;
+}

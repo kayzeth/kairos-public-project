@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUpload, faSpinner } from '@fortawesome/free-solid-svg-icons';
+import { faUpload, faSpinner, faCalendarPlus } from '@fortawesome/free-solid-svg-icons';
 // We'll use the fetch API directly instead of the OpenAI library
 
 
@@ -11,6 +11,8 @@ const SyllabusParser = ({ onAddEvents }) => {
   const [extractedInfo, setExtractedInfo] = useState(null);
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [apiResponse, setApiResponse] = useState(null);
+  const [repeatUntilDate, setRepeatUntilDate] = useState('');
+  const [shouldRepeat, setShouldRepeat] = useState(true);
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -115,7 +117,28 @@ const SyllabusParser = ({ onAddEvents }) => {
           const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || 
                            content.match(/```([\s\S]*?)```/) || 
                            [null, content];
-          parsedData = JSON.parse(jsonMatch[1].trim());
+          
+          // Handle the case where content might already be a JSON string with escape characters
+          const jsonString = jsonMatch[1].trim();
+          try {
+            // First try to parse it directly
+            parsedData = JSON.parse(jsonString);
+          } catch (directParseError) {
+            // If that fails, it might be a string with escape characters that needs to be parsed differently
+            console.log('Direct parsing failed, trying alternative method');
+            try {
+              // If the string contains escaped characters, try to clean it up
+              if (jsonString.includes('\\n')) {
+                // This is a JSON string with escape characters
+                parsedData = JSON.parse(JSON.stringify(eval('(' + jsonString + ')')));
+              } else {
+                throw directParseError; // Re-throw if not the escape character issue
+              }
+            } catch (evalError) {
+              console.error('Alternative parsing method failed:', evalError);
+              throw directParseError; // Use the original error for better debugging
+            }
+          }
         } catch (parseError) {
           console.error('Error parsing OpenAI response:', parseError);
           throw new Error('Failed to parse the syllabus data. The AI response was not in the expected format.');
@@ -131,10 +154,8 @@ const SyllabusParser = ({ onAddEvents }) => {
         // Set the events
         setCalendarEvents(events);
         
-        // Pass events to parent component if callback exists
-        if (onAddEvents && events.length > 0) {
-          onAddEvents(events);
-        }
+        // We'll no longer automatically add events to calendar
+        // The user will confirm via a button click
       } else {
         // For text files
         content = await readFileAsText(file);
@@ -203,7 +224,27 @@ const SyllabusParser = ({ onAddEvents }) => {
         // Parse the JSON response
         let parsedData;
         try {
-          parsedData = JSON.parse(data.choices[0].message.content);
+          const content = data.choices[0].message.content;
+          
+          try {
+            // First try to parse it directly
+            parsedData = JSON.parse(content);
+          } catch (directParseError) {
+            // If that fails, it might be a string with escape characters that needs to be parsed differently
+            console.log('Direct parsing failed, trying alternative method');
+            try {
+              // If the string contains escaped characters, try to clean it up
+              if (content.includes('\\n')) {
+                // This is a JSON string with escape characters
+                parsedData = JSON.parse(JSON.stringify(eval('(' + content + ')')));
+              } else {
+                throw directParseError; // Re-throw if not the escape character issue
+              }
+            } catch (evalError) {
+              console.error('Alternative parsing method failed:', evalError);
+              throw directParseError; // Use the original error for better debugging
+            }
+          }
         } catch (parseError) {
           console.error('Error parsing OpenAI response:', parseError);
           throw new Error('Failed to parse the syllabus data. The AI response was not in the expected format.');
@@ -219,10 +260,8 @@ const SyllabusParser = ({ onAddEvents }) => {
         // Set the events
         setCalendarEvents(events);
         
-        // Pass events to parent component if callback exists
-        if (onAddEvents && events.length > 0) {
-          onAddEvents(events);
-        }
+        // We'll no longer automatically add events to calendar
+        // The user will confirm via a button click
       }
 
       setIsLoading(false);
@@ -275,10 +314,42 @@ const SyllabusParser = ({ onAddEvents }) => {
     });
   };
 
+  // Helper function to get instructor name from different formats
+  const getInstructorName = (instructor) => {
+    if (!instructor) return '';
+    if (typeof instructor === 'string') return instructor;
+    if (typeof instructor === 'object') {
+      if (instructor.name) return instructor.name;
+      // If there's no name property but there are other properties, try to construct a name
+      const keys = Object.keys(instructor);
+      if (keys.includes('firstName') && keys.includes('lastName')) {
+        return `${instructor.firstName} ${instructor.lastName}`;
+      }
+      // Return the first string property as a fallback
+      for (const key of keys) {
+        if (typeof instructor[key] === 'string' && !key.toLowerCase().includes('email')) {
+          return instructor[key];
+        }
+      }
+    }
+    return 'Unknown';
+  };
+
+  // Set default repeat until date (end of semester - about 4 months from now)
+  useEffect(() => {
+    if (!repeatUntilDate) {
+      const today = new Date();
+      const fourMonthsLater = new Date(today);
+      fourMonthsLater.setMonth(today.getMonth() + 4);
+      setRepeatUntilDate(fourMonthsLater.toISOString().split('T')[0]);
+    }
+  }, [repeatUntilDate]);
+
   // Convert parsed syllabus data to calendar events
   const convertToCalendarEvents = (syllabusData) => {
     const events = [];
     const currentYear = new Date().getFullYear();
+    const instructorName = getInstructorName(syllabusData.instructor);
 
     // Add class meetings as recurring events
     if (syllabusData.meetingTimes && Array.isArray(syllabusData.meetingTimes)) {
@@ -293,7 +364,7 @@ const SyllabusParser = ({ onAddEvents }) => {
             recurring: true,
             recurringPattern: meeting.day.toLowerCase(),
             location: meeting.location || '',
-            description: `${syllabusData.courseCode || ''} - ${syllabusData.instructor || ''}`,
+            description: `${syllabusData.courseCode || ''} - ${instructorName}`,
             color: '#4285F4'
           });
         }
@@ -498,7 +569,22 @@ const SyllabusParser = ({ onAddEvents }) => {
           <h3>Extracted Information</h3>
           <div className="parsed-data-summary">
             <p><strong>Course:</strong> {extractedInfo.courseName} ({extractedInfo.courseCode})</p>
-            <p><strong>Instructor:</strong> {extractedInfo.instructor}</p>
+            <p><strong>Instructor:</strong> {(() => {
+              const instructor = extractedInfo.instructor;
+              if (!instructor) return 'Not specified';
+              if (typeof instructor === 'string') return instructor;
+              if (typeof instructor === 'object') {
+                if (instructor.name) return instructor.name;
+                if (instructor.firstName && instructor.lastName) return `${instructor.firstName} ${instructor.lastName}`;
+                // Find the first string property that's not email
+                for (const key of Object.keys(instructor)) {
+                  if (typeof instructor[key] === 'string' && !key.toLowerCase().includes('email')) {
+                    return instructor[key];
+                  }
+                }
+              }
+              return 'Unknown';
+            })()}</p>
             
             {extractedInfo.meetingTimes && extractedInfo.meetingTimes.length > 0 && (
               <div className="section">
@@ -542,13 +628,86 @@ const SyllabusParser = ({ onAddEvents }) => {
                 </ul>
               </div>
             )}
+            
+            <div className="add-to-calendar-section">
+              <div className="calendar-options">
+                <div className="repeat-option">
+                  <label className="repeat-label">
+                    <input 
+                      type="checkbox" 
+                      checked={shouldRepeat} 
+                      onChange={(e) => setShouldRepeat(e.target.checked)}
+                    />
+                    Repeat weekly class meetings
+                  </label>
+                </div>
+                
+                {shouldRepeat && (
+                  <div className="repeat-until-option">
+                    <label htmlFor="repeat-until-date">Repeat until:</label>
+                    <input
+                      type="date"
+                      id="repeat-until-date"
+                      value={repeatUntilDate}
+                      onChange={(e) => setRepeatUntilDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                className="add-to-calendar-button" 
+                onClick={() => {
+                  if (onAddEvents && calendarEvents.length > 0) {
+                    // Apply repeat settings to events
+                    const eventsToAdd = calendarEvents.map(event => {
+                      // Only apply repeat settings to class meetings (not assignments or exams)
+                      if (event.recurring && shouldRepeat) {
+                        return {
+                          ...event,
+                          repeatUntil: repeatUntilDate || null
+                        };
+                      }
+                      return event;
+                    });
+                    
+                    onAddEvents(eventsToAdd);
+                    alert('Events added to calendar successfully!');
+                  }
+                }}
+              >
+                <FontAwesomeIcon icon={faCalendarPlus} /> Add to Calendar
+              </button>
+              
+              <p className="calendar-events-count">
+                {calendarEvents.length} events will be added to your calendar
+                {shouldRepeat && calendarEvents.some(e => e.recurring) && 
+                  ` (class meetings will repeat weekly${repeatUntilDate ? ` until ${new Date(repeatUntilDate).toLocaleDateString()}` : ''})`}
+              </p>
+            </div>
+          </div>
+          
+          <div className="section json-response-section">
+            <h4>JSON Response from OpenAI</h4>
+            <div className="json-response-container">
+              <pre className="json-response">
+                {JSON.stringify(extractedInfo, null, 2)}
+              </pre>
+              <div className="json-response-note">
+                <p><small>This is the structured data extracted from your syllabus that will be used to create calendar events.</small></p>
+              </div>
+            </div>
           </div>
           
           <div className="section">
             <h4>Raw OpenAI API Response</h4>
-            <pre className="api-response">
-              {JSON.stringify(apiResponse, null, 2)}
-            </pre>
+            <details>
+              <summary>View Raw API Response</summary>
+              <pre className="api-response">
+                {JSON.stringify(apiResponse, null, 2)}
+              </pre>
+            </details>
           </div>
         </div>
       )}
