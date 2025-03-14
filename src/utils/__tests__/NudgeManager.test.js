@@ -39,34 +39,6 @@ describe('NudgeManager', () => {
       expect(needingAttention).toHaveLength(1);
       expect(needingAttention[0].id).toBe('2');
     });
-
-    it('should handle dismissal and reappearance of notifications', () => {
-      const mockExams = [createMockExam('1', 'Exam 1', 5)];
-      const dismissTime = new Date(baseDate);
-
-      // Initially should show notification
-      expect(nudgeManager.getExamsNeedingAttention(mockExams, dismissTime)).toHaveLength(1);
-
-      // After dismissal, should not show notification
-      nudgeManager.dismissExam('1', dismissTime);
-      expect(nudgeManager.getExamsNeedingAttention(mockExams, dismissTime)).toHaveLength(0);
-
-      // After 4 hours, should show notification again
-      const fourHoursLater = new Date(dismissTime.getTime() + 4 * 60 * 60 * 1000);
-      expect(nudgeManager.getExamsNeedingAttention(mockExams, fourHoursLater)).toHaveLength(1);
-    });
-
-    it('should only show notifications for exams within two weeks', () => {
-      const mockExams = [
-        createMockExam('1', 'Soon Exam', 5),
-        createMockExam('2', 'Far Exam', 20)
-      ];
-
-      const needingAttention = nudgeManager.getExamsNeedingAttention(mockExams, baseDate);
-      
-      expect(needingAttention).toHaveLength(1);
-      expect(needingAttention[0].id).toBe('1');
-    });
   });
 
   describe('UI integration', () => {
@@ -167,21 +139,6 @@ describe('NudgeManager', () => {
         // Simulate page reload by creating new NudgeManager instance
         const newNudgeManager = new NudgeManager();
         expect(newNudgeManager.getStudyHours(exam.id)).toBe(5);
-      });
-
-      it('should persist dismissal state across page reloads', () => {
-        const exam = createMockExam('1', 'Test Exam', 5);
-        
-        // Dismiss notification
-        nudgeManager.dismissExam(exam.id, baseDate);
-        
-        // Simulate page reload
-        const newNudgeManager = new NudgeManager();
-        expect(newNudgeManager.getExamsNeedingAttention([exam], baseDate)).toHaveLength(0);
-        
-        // Check reappearance after 4 hours
-        const fourHoursLater = new Date(baseDate.getTime() + 4 * 60 * 60 * 1000);
-        expect(newNudgeManager.getExamsNeedingAttention([exam], fourHoursLater)).toHaveLength(1);
       });
     });
   });

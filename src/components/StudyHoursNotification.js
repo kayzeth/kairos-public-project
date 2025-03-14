@@ -6,7 +6,7 @@ const StudyHoursNotification = ({ exams, onSetHours, onDismiss }) => {
   const [studyHours, setStudyHours] = useState({});
 
   const handleHoursChange = (examId, value) => {
-    const hours = Math.max(1, parseInt(value) || 0);
+    const hours = value === '' ? '' : Math.max(1, parseInt(value) || 0);
     setStudyHours(prev => ({ ...prev, [examId]: hours }));
   };
 

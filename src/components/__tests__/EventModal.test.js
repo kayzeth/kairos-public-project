@@ -31,9 +31,8 @@ describe('EventModal Component', () => {
   const mockOnDelete = jest.fn();
 
   beforeEach(() => {
-    mockOnClose.mockClear();
-    mockOnSave.mockClear();
-    mockOnDelete.mockClear();
+    jest.clearAllMocks();
+    window.confirm = jest.fn(() => true);
   });
 
   afterEach(() => {
@@ -168,6 +167,8 @@ describe('EventModal Component', () => {
   });
 
   test('calls onDelete when Delete button is clicked', async () => {
+    window.confirm.mockImplementationOnce(() => true);
+    
     await act(async () => {
       render(
         <EventModal 
@@ -180,9 +181,10 @@ describe('EventModal Component', () => {
     });
     
     // Click the Delete button
-    await act(async () => {
-      fireEvent.click(screen.getByText('Delete'));
-    });
+    fireEvent.click(screen.getByText('Delete'));
+    
+    // Check if confirmation was shown
+    expect(window.confirm).toHaveBeenCalledWith('Are you sure you want to delete this event?');
     
     // Check if onDelete was called with the correct event ID
     expect(mockOnDelete).toHaveBeenCalledWith(mockEvent.id);
@@ -254,7 +256,7 @@ describe('EventModal Component', () => {
       fireEvent.click(screen.getByText('Save'));
     });
     
-    // onSave should not have been called
+    // onSave should not have been called since form validation will prevent submission
     expect(mockOnSave).not.toHaveBeenCalled();
     
     // Now enter a title and try again

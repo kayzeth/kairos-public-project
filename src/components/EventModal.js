@@ -52,6 +52,12 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.title.trim()) {
+      return;
+    }
+
     const cleanEventData = {
       ...formData,
       studyHours: formData.type === 'exam' && formData.studyHours ? Number(formData.studyHours) : undefined
