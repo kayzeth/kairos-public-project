@@ -202,6 +202,7 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
                 <button 
                   className="button button-primary google-button"
                   onClick={handleSignIn}
+                  data-testid="google-sign-in-button"
                 >
                   <FontAwesomeIcon icon={faGoogle} /> Sign in with Google
                 </button>
