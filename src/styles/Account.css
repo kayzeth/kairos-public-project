@@ -103,7 +103,8 @@
   padding-bottom: var(--spacing-sm);
 }
 
-.google-auth-section {
+.google-auth-section,
+.canvas-auth-section {
   display: flex;
   justify-content: center;
   margin: var(--spacing-lg) 0;
@@ -169,6 +170,11 @@
   margin-bottom: var(--spacing-md);
 }
 
+.canvas-icon {
+  color: #E72429;
+  margin-bottom: var(--spacing-md);
+}
+
 .google-button {
   background-color: #4285F4;
   color: white;
@@ -176,8 +182,19 @@
   margin-top: var(--spacing-md);
 }
 
+.canvas-button {
+  background-color: #E72429;
+  color: white;
+  border: none;
+  margin-top: var(--spacing-md);
+}
+
 .google-button:hover {
   background-color: #3367D6;
+}
+
+.canvas-button:hover {
+  background-color: #C41E23;
 }
 
 .user-profile {

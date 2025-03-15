@@ -1,15 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
-import { faSync, faCheck, faTimes, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
+import { faSync, faCheck, faTimes, faCalendarAlt, faGraduationCap } from '@fortawesome/free-solid-svg-icons';
 import googleCalendarService from '../services/googleCalendarService';
+import canvasService from '../services/canvasService';
 import { isConfigured } from '../config/googleCalendarConfig';
+import { isConfigured as isCanvasConfigured } from '../config/canvasConfig';
 
 const Account = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
   const [apiConfigured] = useState(isConfigured());
+  const [canvasStatus, setCanvasStatus] = useState({ status: 'idle', message: '' });
+  const [showCanvasForm, setShowCanvasForm] = useState(false);
+  const [canvasFormData, setCanvasFormData] = useState({ token: '', domain: '' });
+  const [isCanvasConnected, setIsCanvasConnected] = useState(isCanvasConfigured());
 
   useEffect(() => {
     const initializeGoogleCalendar = async () => {
@@ -275,6 +281,141 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
           </ol>
           <p>
             Your calendar data is only transferred when you explicitly request it using the buttons above.
+          </p>
+        </div>
+      </div>
+      
+      <div className="account-section">
+        <h2 className="section-title">Canvas Integration</h2>
+        
+        <div className="canvas-auth-section">
+          {!isCanvasConnected ? (
+            <div className="auth-card">
+              <div className="auth-card-content">
+                <FontAwesomeIcon icon={faGraduationCap} size="3x" className="canvas-icon" />
+                <h3>Connect with Canvas</h3>
+                <p>Link your Canvas account to access your courses and assignments</p>
+                
+                {!showCanvasForm ? (
+                  <button 
+                    className="button button-primary canvas-button"
+                    onClick={() => setShowCanvasForm(true)}
+                    data-testid="canvas-connect-button"
+                  >
+                    <FontAwesomeIcon icon={faGraduationCap} /> Connect Canvas
+                  </button>
+                ) : (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    try {
+                      setCanvasStatus({ status: 'loading', message: 'Connecting to Canvas...' });
+                      canvasService.setCredentials(canvasFormData.token, canvasFormData.domain);
+                      await canvasService.testConnection();
+                      setIsCanvasConnected(true);
+                      setCanvasStatus({ status: 'success', message: 'Successfully connected to Canvas API' });
+                      setTimeout(() => setCanvasStatus({ status: 'idle', message: '' }), 3000);
+                    } catch (error) {
+                      console.error('Canvas connection error:', error);
+                      setCanvasStatus({
+                        status: 'error',
+                        message: 'Failed to connect to Canvas. Please check your credentials.'
+                      });
+                      canvasService.clearCredentials();
+                    }
+                  }}>
+                    <div className="form-group">
+                      <label htmlFor="canvasToken">Canvas Developer Token</label>
+                      <input
+                        type="password"
+                        id="canvasToken"
+                        value={canvasFormData.token}
+                        onChange={(e) => setCanvasFormData(prev => ({ ...prev, token: e.target.value }))}
+                        required
+                        className="form-input"
+                        placeholder="Enter your Canvas token"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="canvasDomain">School Domain</label>
+                      <input
+                        type="text"
+                        id="canvasDomain"
+                        value={canvasFormData.domain}
+                        onChange={(e) => setCanvasFormData(prev => ({ ...prev, domain: e.target.value }))}
+                        required
+                        className="form-input"
+                        placeholder="e.g., harvard"
+                      />
+                    </div>
+                    <div className="button-group">
+                      <button type="submit" className="button button-primary">
+                        Connect
+                      </button>
+                      <button 
+                        type="button" 
+                        className="button button-text"
+                        onClick={() => {
+                          setShowCanvasForm(false);
+                          setCanvasFormData({ token: '', domain: '' });
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="auth-card">
+              <div className="auth-card-content">
+                <div className="connected-status">
+                  <FontAwesomeIcon icon={faCheck} className="status-icon success" />
+                  <span>Connected to Canvas</span>
+                </div>
+                
+                <button 
+                  className="button button-text"
+                  onClick={() => {
+                    canvasService.clearCredentials();
+                    setIsCanvasConnected(false);
+                    setCanvasStatus({ status: 'idle', message: '' });
+                  }}
+                >
+                  Disconnect Canvas Account
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {canvasStatus.status !== 'idle' && (
+          <div className={`sync-status ${canvasStatus.status}`}>
+            <FontAwesomeIcon 
+              icon={
+                canvasStatus.status === 'loading' ? faSync :
+                canvasStatus.status === 'success' ? faCheck : faTimes
+              } 
+              className={`status-icon ${canvasStatus.status === 'loading' ? 'fa-spin' : ''}`}
+            />
+            <span data-testid="canvas-status-message">{canvasStatus.message}</span>
+          </div>
+        )}
+        
+        <div className="integration-note">
+          <p>
+            <strong>How to get your Canvas Developer Token:</strong>
+          </p>
+          <ol>
+            <li>Log in to your Canvas account</li>
+            <li>Go to Account {'>'} Settings</li>
+            <li>Scroll down to the Approved Integrations section</li>
+            <li>Click on "+ New Access Token"</li>
+            <li>Give your token a purpose (e.g., "Kairos Integration")</li>
+            <li>Copy the generated token (Note: You won't be able to see it again!)</li>
+          </ol>
+          <p>
+            <strong>Note:</strong> Your Canvas token is stored securely in your browser and is only used to communicate with your Canvas instance.
           </p>
         </div>
       </div>
