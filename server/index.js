@@ -5,7 +5,12 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-canvas-domain']
+}));
 app.use(express.json());
 
 // Proxy all Canvas API requests

@@ -14,7 +14,6 @@ const Account = () => {
   const [apiConfigured] = useState(isConfigured());
   const [canvasStatus, setCanvasStatus] = useState({ status: 'idle', message: '' });
   const [canvasSyncStatus, setCanvasSyncStatus] = useState({ status: 'idle', message: '' });
-  const [setShowCanvasForm] = useState(false);
   const [canvasFormData, setCanvasFormData] = useState({ token: '', domain: '' });
   const [isCanvasConnected, setIsCanvasConnected] = useState(isCanvasConfigured());
 
@@ -152,7 +151,6 @@ const Account = () => {
       await canvasService.setCredentials(canvasFormData.token, canvasFormData.domain);
       await canvasService.testConnection();
       setIsCanvasConnected(true);
-      setShowCanvasForm(false); // Hide the form after successful connection
       setCanvasStatus({ 
         status: 'success', 
         message: 'Successfully connected to Canvas!' 

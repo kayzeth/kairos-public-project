@@ -1,4 +1,8 @@
-const PROXY_URL = 'http://localhost:3001/api/canvas/';
+const PROXY_URL = process.env.NODE_ENV === 'production' 
+  ? '/api/canvas/'  // In production, use relative path
+  : 'http://localhost:3001/api/canvas/';  // In development, use full URL
+
+console.log(process.env.NODE_ENV);
 
 const canvasService = {
   testConnection: async () => {
@@ -48,6 +52,8 @@ const canvasService = {
       if (!response.ok) {
         throw new Error('Failed to fetch courses');
       }
+
+      console.log(response);
 
       const courses = await response.json();
       
