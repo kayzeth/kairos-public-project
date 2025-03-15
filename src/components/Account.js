@@ -13,6 +13,7 @@ const Account = () => {
   const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
   const [apiConfigured] = useState(isConfigured());
   const [canvasStatus, setCanvasStatus] = useState({ status: 'idle', message: '' });
+  const [canvasSyncStatus, setCanvasSyncStatus] = useState({ status: 'idle', message: '' });
   const [showCanvasForm, setShowCanvasForm] = useState(false);
   const [canvasFormData, setCanvasFormData] = useState({ token: '', domain: '' });
   const [isCanvasConnected, setIsCanvasConnected] = useState(isCanvasConfigured());
@@ -140,6 +141,62 @@ const Account = () => {
         status: 'error',
         message: 'Failed to sync with Google Calendar'
       });
+    }
+  };
+
+  const handleCanvasSubmit = async (e) => {
+    e.preventDefault();
+    setCanvasStatus({ status: 'loading', message: 'Connecting to Canvas...' });
+    try {
+      // Add Bearer prefix to token if not already present
+      const token = canvasFormData.token.startsWith('Bearer ') ? 
+        canvasFormData.token : 
+        `Bearer ${canvasFormData.token}`;
+      
+      // Ensure domain is in the correct format (canvas.domain.edu)
+      const domain = canvasFormData.domain.includes('.') ? 
+        canvasFormData.domain : 
+        `canvas.${canvasFormData.domain}.edu`;
+      
+      await canvasService.setCredentials(token, domain);
+      await canvasService.testConnection();
+      setIsCanvasConnected(true);
+      setShowCanvasForm(false); // Hide the form after successful connection
+      setCanvasStatus({ 
+        status: 'success', 
+        message: 'Successfully connected to Canvas!' 
+      });
+      setTimeout(() => setCanvasStatus({ status: 'idle', message: '' }), 3000);
+    } catch (error) {
+      console.error('Canvas connection error:', error);
+      setCanvasStatus({
+        status: 'error',
+        message: 'Failed to connect to Canvas. Please check your credentials.'
+      });
+      setTimeout(() => setCanvasStatus({ status: 'idle', message: '' }), 3000);
+    }
+  };
+
+  const handleCanvasSync = async () => {
+    setCanvasSyncStatus({ status: 'loading', message: 'Syncing Canvas assignments...' });
+    try {
+      const eventCount = await canvasService.syncWithCalendar();
+      
+      // Force a refresh of the calendar events by triggering a window event
+      window.dispatchEvent(new Event('calendarEventsUpdated'));
+      
+      setCanvasSyncStatus({ 
+        status: 'success', 
+        message: `Successfully imported ${eventCount} Canvas assignments!` 
+      });
+      setTimeout(() => setCanvasSyncStatus({ status: 'idle', message: '' }), 3000);
+    } catch (error) {
+      console.error('Canvas sync error:', error);
+      setCanvasSyncStatus({
+        status: 'error',
+        message: 'Failed to sync Canvas assignments. Please try again.'
+      });
+      setTimeout(() => setCanvasSyncStatus({ status: 'idle', message: '' }), 3000);
     }
   };
 
@@ -290,117 +347,73 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
         
         <div className="canvas-auth-section">
           {!isCanvasConnected ? (
-            <div className="auth-card">
-              <div className="auth-card-content">
-                <FontAwesomeIcon icon={faGraduationCap} size="3x" className="canvas-icon" />
-                <h3>Connect with Canvas</h3>
-                <p>Link your Canvas account to access your courses and assignments</p>
-                
-                {!showCanvasForm ? (
-                  <button 
-                    className="button button-primary canvas-button"
-                    onClick={() => setShowCanvasForm(true)}
-                    data-testid="canvas-connect-button"
-                  >
-                    <FontAwesomeIcon icon={faGraduationCap} /> Connect Canvas
-                  </button>
-                ) : (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    try {
-                      setCanvasStatus({ status: 'loading', message: 'Connecting to Canvas...' });
-                      canvasService.setCredentials(canvasFormData.token, canvasFormData.domain);
-                      await canvasService.testConnection();
-                      setIsCanvasConnected(true);
-                      setCanvasStatus({ status: 'success', message: 'Successfully connected to Canvas API' });
-                      setTimeout(() => setCanvasStatus({ status: 'idle', message: '' }), 3000);
-                    } catch (error) {
-                      console.error('Canvas connection error:', error);
-                      setCanvasStatus({
-                        status: 'error',
-                        message: 'Failed to connect to Canvas. Please check your credentials.'
-                      });
-                      canvasService.clearCredentials();
-                    }
-                  }}>
-                    <div className="form-group">
-                      <label htmlFor="canvasToken">Canvas Developer Token</label>
-                      <input
-                        type="password"
-                        id="canvasToken"
-                        value={canvasFormData.token}
-                        onChange={(e) => setCanvasFormData(prev => ({ ...prev, token: e.target.value }))}
-                        required
-                        className="form-input"
-                        placeholder="Enter your Canvas token"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="canvasDomain">School Domain</label>
-                      <input
-                        type="text"
-                        id="canvasDomain"
-                        value={canvasFormData.domain}
-                        onChange={(e) => setCanvasFormData(prev => ({ ...prev, domain: e.target.value }))}
-                        required
-                        className="form-input"
-                        placeholder="e.g., harvard"
-                      />
-                    </div>
-                    <div className="button-group">
-                      <button type="submit" className="button button-primary">
-                        Connect
-                      </button>
-                      <button 
-                        type="button" 
-                        className="button button-text"
-                        onClick={() => {
-                          setShowCanvasForm(false);
-                          setCanvasFormData({ token: '', domain: '' });
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                )}
+            <form onSubmit={handleCanvasSubmit}>
+              <div className="form-group">
+                <label htmlFor="canvasToken">Canvas Developer Token:</label>
+                <input
+                  type="password"
+                  id="canvasToken"
+                  value={canvasFormData.token}
+                  onChange={(e) => setCanvasFormData(prev => ({ ...prev, token: e.target.value }))}
+                  placeholder="Enter your Canvas token"
+                  required
+                />
               </div>
-            </div>
-          ) : (
-            <div className="auth-card">
-              <div className="auth-card-content">
-                <div className="connected-status">
-                  <FontAwesomeIcon icon={faCheck} className="status-icon success" />
-                  <span>Connected to Canvas</span>
+              <div className="form-group">
+                <label htmlFor="canvasDomain">School Domain:</label>
+                <input
+                  type="text"
+                  id="canvasDomain"
+                  value={canvasFormData.domain}
+                  onChange={(e) => setCanvasFormData(prev => ({ ...prev, domain: e.target.value }))}
+                  placeholder="e.g., harvard"
+                  required
+                />
+              </div>
+              <button 
+                type="submit" 
+                className={`connect-button ${canvasStatus.status === 'loading' ? 'loading' : ''}`}
+                disabled={canvasStatus.status === 'loading'}
+              >
+                {canvasStatus.status === 'loading' ? 'Connecting...' : 'Connect Canvas'}
+              </button>
+              {canvasStatus.message && (
+                <div className={`status-message ${canvasStatus.status}`}>
+                  {canvasStatus.message}
                 </div>
-                
+              )}
+            </form>
+          ) : (
+            <div className="connected-status">
+              <div className="status-header">
+                <span className="connected-text">✓ Connected to Canvas</span>
                 <button 
-                  className="button button-text"
+                  className="disconnect-button"
                   onClick={() => {
                     canvasService.clearCredentials();
                     setIsCanvasConnected(false);
-                    setCanvasStatus({ status: 'idle', message: '' });
                   }}
                 >
-                  Disconnect Canvas Account
+                  Disconnect
                 </button>
+              </div>
+              <div className="sync-section">
+                <button 
+                  className={`sync-button ${canvasSyncStatus.status === 'loading' ? 'loading' : ''}`}
+                  onClick={handleCanvasSync}
+                  disabled={canvasSyncStatus.status === 'loading'}
+                >
+                  {canvasSyncStatus.status === 'loading' ? 'Syncing...' : 'Sync Canvas Assignments'}
+                </button>
+                {canvasSyncStatus.message && (
+                  <div className={`status-message ${canvasSyncStatus.status}`}>
+                    {canvasSyncStatus.message}
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
-        
-        {canvasStatus.status !== 'idle' && (
-          <div className={`sync-status ${canvasStatus.status}`}>
-            <FontAwesomeIcon 
-              icon={
-                canvasStatus.status === 'loading' ? faSync :
-                canvasStatus.status === 'success' ? faCheck : faTimes
-              } 
-              className={`status-icon ${canvasStatus.status === 'loading' ? 'fa-spin' : ''}`}
-            />
-            <span data-testid="canvas-status-message">{canvasStatus.message}</span>
-          </div>
-        )}
         
         <div className="integration-note">
           <p>

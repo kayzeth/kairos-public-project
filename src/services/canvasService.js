@@ -1,4 +1,5 @@
-// Canvas API Service
+const PROXY_URL = 'http://localhost:3001/api/canvas/';
+
 const canvasService = {
   testConnection: async () => {
     const token = localStorage.getItem('canvasToken');
@@ -9,16 +10,11 @@ const canvasService = {
     }
 
     try {
-      // Use the proxy endpoint instead of direct Canvas API call
-      const response = await fetch('/api/canvas/test-connection', {
-        method: 'POST',
+      const response = await fetch(PROXY_URL + 'users/self', {
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          domain
-        })
+          'Authorization': token,
+          'x-canvas-domain': domain
+        }
       });
 
       if (!response.ok) {
@@ -33,9 +29,185 @@ const canvasService = {
     }
   },
 
+  fetchEnrolledCourses: async () => {
+    const token = localStorage.getItem('canvasToken');
+    const domain = localStorage.getItem('canvasDomain');
+    
+    if (!token || !domain) {
+      throw new Error('Canvas credentials not found');
+    }
+
+    try {
+      const response = await fetch(PROXY_URL + 'courses?enrollment_state=active&include[]=term', {
+        headers: {
+          'Authorization': token,
+          'x-canvas-domain': domain
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch courses');
+      }
+
+      const courses = await response.json();
+      
+      // Filter for courses in the current term
+      const now = new Date();
+      const currentCourses = courses.filter(course => {
+        const term = course.term;
+        if (!term) return false;
+        
+        const startDate = term.start_at ? new Date(term.start_at) : null;
+        const endDate = term.end_at ? new Date(term.end_at) : null;
+        
+        // If no dates are specified, include the course
+        if (!startDate && !endDate) return true;
+        
+        // If only start date is specified, check if it's in the past
+        if (startDate && !endDate) return startDate <= now;
+        
+        // If only end date is specified, check if it's in the future
+        if (!startDate && endDate) return endDate >= now;
+        
+        // If both dates are specified, check if current date is within range
+        return startDate <= now && endDate >= now;
+      });
+
+      console.log('Found', currentCourses.length, 'current active courses');
+      return currentCourses;
+    } catch (error) {
+      console.error('Failed to fetch Canvas courses:', error);
+      throw error;
+    }
+  },
+
+  fetchAssignmentsForCourse: async (courseId) => {
+    const token = localStorage.getItem('canvasToken');
+    const domain = localStorage.getItem('canvasDomain');
+    
+    if (!token || !domain) {
+      throw new Error('Canvas credentials not found');
+    }
+
+    try {
+      console.log(`Fetching assignments for course ${courseId}...`);
+      const response = await fetch(PROXY_URL + `courses/${courseId}/assignments?include[]=due_at&include[]=description`, {
+        headers: {
+          'Authorization': token,
+          'x-canvas-domain': domain
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`Failed to fetch assignments for course ${courseId}:`, error);
+        throw new Error(`Failed to fetch assignments: ${error}`);
+      }
+
+      const assignments = await response.json();
+      console.log(`Found ${assignments.length} assignments for course ${courseId}`);
+      return assignments;
+    } catch (error) {
+      console.error(`Failed to fetch assignments for course ${courseId}:`, error);
+      throw error;
+    }
+  },
+
+  syncWithCalendar: async () => {
+    try {
+      // Get all enrolled courses
+      const courses = await canvasService.fetchEnrolledCourses();
+      console.log('Fetching assignments for', courses.length, 'courses...');
+      
+      // Fetch assignments for each course
+      const assignmentPromises = courses.map(course => 
+        canvasService.fetchAssignmentsForCourse(course.id)
+          .then(assignments => {
+            console.log(`Processing ${assignments.length} assignments for course: ${course.name}`);
+            return assignments.map(assignment => ({
+              ...assignment,
+              courseName: course.name
+            }));
+          })
+          .catch(error => {
+            console.error(`Error fetching assignments for course ${course.name}:`, error);
+            return []; // Continue with other courses if one fails
+          })
+      );
+
+      const allAssignments = (await Promise.all(assignmentPromises)).flat();
+      console.log('Total assignments found:', allAssignments.length);
+
+      // Get existing events from localStorage
+      const existingEvents = JSON.parse(localStorage.getItem('calendarEvents') || '[]');
+      console.log('Found', existingEvents.length, 'existing events in localStorage');
+      
+      // Convert non-canvas events back to Date objects
+      const nonCanvasEvents = existingEvents
+        .filter(event => event.type !== 'canvas')
+        .map(event => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end)
+        }));
+      console.log('Keeping', nonCanvasEvents.length, 'non-Canvas events');
+
+      // Convert assignments to calendar events
+      const calendarEvents = allAssignments
+        .filter(assignment => {
+          const hasDueDate = !!assignment.due_at;
+          if (!hasDueDate) {
+            console.log(`Skipping assignment without due date: ${assignment.name} in ${assignment.courseName}`);
+          }
+          return hasDueDate;
+        })
+        .map(assignment => {
+          const dueDate = new Date(assignment.due_at);
+          console.log(`Creating calendar event for: ${assignment.name} (due: ${dueDate.toLocaleString()})`);
+          
+          // Create an all-day event if the due time is midnight (00:00:00)
+          const isAllDay = dueDate.getHours() === 0 && dueDate.getMinutes() === 0;
+          
+          return {
+            id: `canvas-${assignment.id}`, // Unique ID for Canvas assignments
+            title: `${assignment.courseName}: ${assignment.name}`,
+            start: dueDate,
+            end: dueDate,
+            description: assignment.description || '',
+            type: 'canvas',
+            allDay: isAllDay,
+            color: '#4287f5', // Nice shade of blue
+            metadata: {
+              courseId: assignment.course_id,
+              assignmentId: assignment.id,
+              points: assignment.points_possible,
+              url: assignment.html_url
+            }
+          };
+        });
+
+      console.log('Created', calendarEvents.length, 'calendar events');
+
+      // Merge Canvas events with other events
+      const updatedEvents = [...nonCanvasEvents, ...calendarEvents];
+      console.log('Saving', updatedEvents.length, 'total events to localStorage');
+      
+      // Store all events in localStorage
+      localStorage.setItem('calendarEvents', JSON.stringify(updatedEvents));
+
+      // Return the number of Canvas events added
+      return calendarEvents.length;
+    } catch (error) {
+      console.error('Failed to sync Canvas calendar:', error);
+      throw error;
+    }
+  },
+
   setCredentials: (token, domain) => {
+    // Ensure domain is in the format canvas.domain.edu
+    const formattedDomain = domain.includes('.') ? domain : `canvas.${domain}.edu`;
     localStorage.setItem('canvasToken', token);
-    localStorage.setItem('canvasDomain', domain);
+    localStorage.setItem('canvasDomain', formattedDomain);
   },
 
   clearCredentials: () => {

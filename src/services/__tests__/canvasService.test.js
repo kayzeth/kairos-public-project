@@ -52,16 +52,11 @@ describe('Canvas Service', () => {
       const result = await canvasService.testConnection();
       expect(result).toBe(true);
       expect(fetch).toHaveBeenCalledWith(
-        '/api/canvas/test-connection',
+        `https://canvas.${TEST_DOMAIN}.edu/api/v1/users/self`,
         {
-          method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            token: TEST_TOKEN,
-            domain: TEST_DOMAIN
-          })
+            'Authorization': `Bearer ${TEST_TOKEN}`
+          }
         }
       );
     });
@@ -98,6 +93,60 @@ describe('Canvas Service', () => {
       fetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(canvasService.testConnection()).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('syncWithCalendar', () => {
+    test('successfully syncs assignments to calendar', async () => {
+      // Mock localStorage
+      localStorage.getItem.mockImplementation((key) => {
+        if (key === 'canvasToken') return TEST_TOKEN;
+        if (key === 'canvasDomain') return TEST_DOMAIN;
+        if (key === 'calendarEvents') return '[]';
+        return null;
+      });
+
+      // Mock courses response
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([
+          { id: 1, name: 'Course 1', enrollment_state: 'active' }
+        ])
+      });
+
+      // Mock assignments response
+      fetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([
+          {
+            id: 1,
+            name: 'Assignment 1',
+            due_at: '2025-04-01T23:59:59Z',
+            description: 'Test assignment',
+            points_possible: 100
+          }
+        ])
+      });
+
+      const eventCount = await canvasService.syncWithCalendar();
+      expect(eventCount).toBe(1);
+      
+      // Verify calendar events were stored
+      const expectedEvents = [{
+        title: 'Course 1: Assignment 1',
+        start: new Date('2025-04-01T23:59:59Z'),
+        end: new Date('2025-04-01T23:59:59Z'),
+        description: 'Test assignment',
+        type: 'canvas',
+        color: '#4287f5',
+        metadata: {
+          courseId: undefined,
+          assignmentId: 1,
+          points: 100
+        }
+      }];
+
+      expect(localStorage.setItem).toHaveBeenCalledWith('calendarEvents', JSON.stringify(expectedEvents));
     });
   });
 
