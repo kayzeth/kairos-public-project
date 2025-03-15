@@ -40,7 +40,7 @@
     "assert": "^2.1.0",
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
-    "concurrently": "^8.2.2",
+    "concurrently": "^7.6.0",
     "crypto-browserify": "^3.12.1",
     "jest-environment-jsdom": "^29.5.0",
     "path-browserify": "^1.0.1",
@@ -50,9 +50,8 @@
     "util": "^0.12.5"
   },
   "scripts": {
-    "start": "concurrently \"react-app-rewired start\" \"node server/index.js\"",
-    "start-client": "react-app-rewired start",
-    "start-server": "node server/index.js",
+    "start": "concurrently \"npm run server\" \"react-app-rewired start\"",
+    "server": "node server/index.js",
     "build": "react-app-rewired build",
     "test": "react-app-rewired test",
     "eject": "react-scripts eject"

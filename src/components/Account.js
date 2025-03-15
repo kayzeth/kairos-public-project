@@ -357,12 +357,12 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
                   id="canvasDomain"
                   value={canvasFormData.domain}
                   onChange={(e) => setCanvasFormData(prev => ({ ...prev, domain: e.target.value }))}
-                  placeholder="e.g., harvard (we'll add canvas.*.edu)"
+                  placeholder="e.g., harvard (we will add canvas.*.edu)"
                   required
                 />
                 <small className="form-help">
                   Enter your school name (e.g., harvard) or full domain (e.g., harvard.edu). 
-                  We'll automatically format it as canvas.*.edu
+                  We will automatically format it as canvas.*.edu
                 </small>
               </div>
               <button 
@@ -416,11 +416,11 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
           </p>
           <ol>
             <li>Log in to your Canvas account</li>
-            <li>Go to Account {'>'} Settings</li>
+            <li>Go to Account &gt; Settings</li>
             <li>Scroll down to the Approved Integrations section</li>
-            <li>Click on "+ New Access Token"</li>
-            <li>Give your token a purpose (e.g., "Kairos Integration")</li>
-            <li>Copy the generated token (Note: You won't be able to see it again!)</li>
+            <li>Click on &quot;+ New Access Token&quot;</li>
+            <li>Give your token a purpose (e.g., &quot;Kairos Integration&quot;)</li>
+            <li>Copy the generated token (Note: You won&apos;t be able to see it again!)</li>
           </ol>
           <p>
             <strong>Note:</strong> Your Canvas token is stored securely in your browser and is only used to communicate with your Canvas instance.
