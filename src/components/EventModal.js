@@ -261,7 +261,12 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
                       placeholder="Enter hours"
                       min="0"
                       step="0.5"
-                      style={{ width: '80px' }}
+                      style={{ 
+                        width: '120px', 
+                        height: '32px',
+                        padding: '4px 8px',
+                        fontSize: '14px'
+                      }}
                       data-testid="preparation-hours-input"
                     />
                   </div>
