@@ -1,16 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Calendar from './components/Calendar';
+import Account from './components/Account';
+import SyllabusParser from './components/SyllabusParser';
 import './styles/App.css';
+import './styles/Account.css';
+import './styles/SyllabusParser.css';
 
 function App() {
+  const [activeTab, setActiveTab] = useState('calendar');
+  const [events, setEvents] = useState([]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
+
+  const handleAddEvents = (newEvents) => {
+    if (newEvents && newEvents.length > 0) {
+      setEvents(prevEvents => [...prevEvents, ...newEvents]);
+      // Switch to calendar tab to show the newly added events
+      setActiveTab('calendar');
+    }
+  };
+
   return (
-    <div className="app-container" data-testid="app-container">
-      <Header />
-      <main className="main-content">
-        <Calendar data-testid="calendar-component" />
-      </main>
-    </div>
+    <Router>
+      <div className="app-container" data-testid="app-container">
+        <Header activeTab={activeTab} onTabChange={handleTabChange} />
+        <main className="main-content">
+          <Routes>
+            <Route 
+              path="/" 
+              element={<Calendar data-testid="calendar-component" initialEvents={events} />}
+            />
+            <Route path="/account" element={<Account />} />
+            <Route 
+              path="/syllabusParser" 
+              element={<SyllabusParser onAddEvents={handleAddEvents} />} 
+            />
+          </Routes>
+        </main>
+      </div>
+    </Router>
   );
 }
 

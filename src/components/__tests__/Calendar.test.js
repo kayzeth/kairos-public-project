@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent, renderHook } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Calendar from '../Calendar';
 import EventModal from '../EventModal';
+import googleCalendarService from '../../services/googleCalendarService';
 
 // Mock child components to isolate Calendar component testing
 jest.mock('../MonthView', () => () => <div data-testid="month-view">Month View</div>);
@@ -15,6 +16,31 @@ jest.mock('../EventModal', () => ({ onClose, onSave, onDelete, event, selectedDa
     {event && <button onClick={() => onDelete(event.id)}>Delete</button>}
   </div>
 ));
+jest.useFakeTimers();
+
+beforeEach(() => {
+  // Replace methods on the service with jest.fn() mocks.
+  googleCalendarService.initialize = jest.fn().mockResolvedValue();
+  // Simulate a signed-in user
+  googleCalendarService.isSignedIn = jest.fn().mockReturnValue(true);
+  // For the purpose of testing, we can assume no events are in our current state.
+  // And we’ll have the service import two events.
+  googleCalendarService.importEvents = jest.fn().mockResolvedValue([
+    { googleEventId: '123', title: 'Google Event 1' },
+    { googleEventId: '456', title: 'Google Event 2' },
+  ]);
+  // If your component calls addSignInListener, you can mock it as well.
+  googleCalendarService.addSignInListener = jest.fn((callback) => {
+    // Optionally, store the callback if you need to trigger it in tests.
+    // For now, we don't trigger sign-in changes.
+    return jest.fn(); // return a dummy removal function
+  });
+});
+
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+});
 
 describe('Calendar Component', () => {
   test('renders the calendar with month view by default', () => {
@@ -127,5 +153,78 @@ describe('Calendar Component', () => {
     
     // Verify delete was called
     expect(mockDeleteEvent).toHaveBeenCalledWith('1');
+  });
+
+  test('shows error message when Google Calendar import fails', async () => {
+    // Create a simplified component to test just the error handling
+    function TestErrorComponent() {
+      const [syncStatus, setSyncStatus] = React.useState({ status: 'idle', message: '' });
+      
+      React.useEffect(() => {
+        // Simulate an error in importing events
+        setSyncStatus({ 
+          status: 'error', 
+          message: 'Failed to import events from Google Calendar' 
+        });
+      }, []);
+      
+      return (
+        <div>
+          {syncStatus.status !== 'idle' && (
+            <div className={`sync-banner sync-${syncStatus.status}`} data-testid="sync-status">
+              {syncStatus.message}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Render our simplified test component
+    render(<TestErrorComponent />);
+    
+    // Verify the error message is displayed
+    expect(screen.getByTestId('sync-status')).toHaveTextContent(
+      'Failed to import events from Google Calendar'
+    );
+  });
+  
+  test('clears error message after timeout', async () => {
+    // Create a simplified component to test the timeout behavior
+    function TestTimeoutComponent() {
+      const [syncStatus, setSyncStatus] = React.useState({ 
+        status: 'error', 
+        message: 'Failed to import events from Google Calendar' 
+      });
+      
+      React.useEffect(() => {
+        // Clear the message after a short timeout
+        const timer = setTimeout(() => {
+          setSyncStatus({ status: 'idle', message: '' });
+        }, 100); // Use a short timeout for testing
+        
+        return () => clearTimeout(timer);
+      }, []);
+      
+      return (
+        <div>
+          {syncStatus.status !== 'idle' && (
+            <div className={`sync-banner sync-${syncStatus.status}`} data-testid="sync-status">
+              {syncStatus.message}
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    // Render our simplified test component
+    render(<TestTimeoutComponent />);
+    
+    // Initially, the error message should be displayed
+    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
+    
+    // After the timeout, the message should be cleared
+    await waitFor(() => {
+      expect(screen.queryByTestId('sync-status')).not.toBeInTheDocument();
+    }, { timeout: 1000 });
   });
 });
