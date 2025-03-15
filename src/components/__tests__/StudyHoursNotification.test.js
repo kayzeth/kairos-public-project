@@ -29,7 +29,7 @@ describe('Study Hours Input and Validation', () => {
     };
     
     render(<EventModal event={mockEvent} />);
-    expect(screen.queryByPlaceholderText('Study hours needed')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Study hours needed (optional)')).not.toBeInTheDocument();
 
     const examEvent = {
       type: 'exam',
@@ -39,10 +39,10 @@ describe('Study Hours Input and Validation', () => {
     };
     
     render(<EventModal event={examEvent} />);
-    expect(screen.getByPlaceholderText('Study hours needed')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Study hours needed (optional)')).toBeInTheDocument();
   });
 
-  it('should validate study hours as positive numbers', () => {
+  it('should allow exam creation without study hours', () => {
     const mockOnSave = jest.fn();
     render(
       <EventModal 
@@ -51,13 +51,37 @@ describe('Study Hours Input and Validation', () => {
           type: 'exam', 
           start: mockDate, 
           end: mockDate,
-          title: 'Test Exam'  // Title is required
+          title: 'Test Exam'
         }} 
       />
     );
     
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
-    const form = screen.getByRole('form');
+    const form = screen.getByTestId('event-form');
+    fireEvent.submit(form);
+    
+    expect(mockOnSave).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'exam',
+      title: 'Test Exam',
+      studyHours: undefined
+    }));
+  });
+
+  it('should validate study hours as positive numbers when provided', () => {
+    const mockOnSave = jest.fn();
+    render(
+      <EventModal 
+        onSave={mockOnSave} 
+        event={{ 
+          type: 'exam', 
+          start: mockDate, 
+          end: mockDate,
+          title: 'Test Exam'
+        }} 
+      />
+    );
+    
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
+    const form = screen.getByTestId('event-form');
     
     // Test negative number
     fireEvent.change(studyHoursInput, { target: { value: '-5' } });
@@ -84,7 +108,7 @@ describe('Study Hours Input and Validation', () => {
     };
     
     render(<EventModal event={examEvent} />);
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
     expect(studyHoursInput.value).toBe('15');
   });
 
@@ -101,11 +125,11 @@ describe('Study Hours Input and Validation', () => {
     const typeSelect = screen.getByRole('combobox');
     
     // Verify study hours input is initially present
-    expect(screen.getByPlaceholderText('Study hours needed')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Study hours needed (optional)')).toBeInTheDocument();
     
     // Change to regular event
     fireEvent.change(typeSelect, { target: { value: 'event' } });
-    expect(screen.queryByPlaceholderText('Study hours needed')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Study hours needed (optional)')).not.toBeInTheDocument();
   });
 });
 
@@ -134,8 +158,8 @@ describe('Notification State Management', () => {
     
     const mockOnSave = jest.fn();
     render(<EventModal event={examEvent} onSave={mockOnSave} />);
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
-    const form = screen.getByRole('form');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
+    const form = screen.getByTestId('event-form');
     
     fireEvent.change(studyHoursInput, { target: { value: '25' } });
     fireEvent.submit(form);
@@ -157,7 +181,7 @@ describe('Notification State Management', () => {
     };
     
     render(<EventModal event={examEvent} />);
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
     expect(studyHoursInput.value).toBe('15');
   });
 
@@ -204,8 +228,7 @@ describe('User Interface', () => {
       }} 
     />);
     
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
-    const form = screen.getByRole('form');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
     
     // Test negative number
     fireEvent.change(studyHoursInput, { target: { value: '-5' } });
@@ -226,7 +249,7 @@ describe('User Interface', () => {
       }} 
     />);
     
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
     
     // HTML5 number input automatically handles non-numeric input
     fireEvent.change(studyHoursInput, { target: { value: 'abc' } });
@@ -243,7 +266,7 @@ describe('User Interface', () => {
       }} 
     />);
     
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
     const saveButton = screen.getByRole('button', { name: /save/i });
     
     fireEvent.change(studyHoursInput, { target: { value: '10' } });
@@ -274,7 +297,7 @@ describe('Performance', () => {
     };
     
     render(<EventModal event={examEvent} />);
-    const studyHoursInput = screen.getByPlaceholderText('Study hours needed');
+    const studyHoursInput = screen.getByPlaceholderText('Study hours needed (optional)');
     
     const startTime = performance.now();
     

@@ -68,8 +68,8 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
       return;
     }
 
-    // Validate study hours for exam events
-    if (formData.type === 'exam' && (formData.studyHours === '' || Number(formData.studyHours) < 0)) {
+    // Only validate study hours if provided for exam events
+    if (formData.type === 'exam' && formData.studyHours !== '' && Number(formData.studyHours) < 0) {
       return;
     }
 
@@ -92,7 +92,7 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
         <button className="close-button" onClick={onClose}>
           <FontAwesomeIcon icon={faTimes} />
         </button>
-        <form onSubmit={handleSubmit} role="form">
+        <form onSubmit={handleSubmit} data-testid="event-form">
           <div className="modal-body">
             <div className="form-group">
               <input
@@ -235,9 +235,8 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
                   className="form-input"
                   value={formData.studyHours}
                   onChange={handleChange}
-                  placeholder="Study hours needed"
+                  placeholder="Study hours needed (optional)"
                   min="0"
-                  required={formData.type === 'exam'}
                   style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
                 />
               </div>
