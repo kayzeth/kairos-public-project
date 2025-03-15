@@ -51,21 +51,20 @@ describe('Nudger Integration with Calendar', () => {
       writable: true
     });
     
-    // Mock the nudger service to return test data
+    // Mock the nudger service to return test data based on requiresPreparation flag
     nudgerService.getStudyPlan.mockImplementation((events) => {
-      const studyEvents = events.filter(event => 
-        event.title.toLowerCase().includes('exam') || 
-        event.title.toLowerCase().includes('quiz')
-      ).map(event => ({
-        ...event,
-        requiresStudy: true,
-        suggestedStudyHours: 3,
-        identifiedBy: 'nudger'
-      }));
+      const studyEvents = events.filter(event => event.requiresPreparation === true)
+        .map(event => ({
+          ...event,
+          requiresStudy: true,
+          suggestedStudyHours: event.preparationHours ? Number(event.preparationHours) : 3,
+          identifiedBy: 'nudger'
+        }));
       
       return {
         events: studyEvents,
-        totalStudyHours: studyEvents.length * 3,
+        totalStudyHours: studyEvents.reduce((total, event) => 
+          total + (event.preparationHours ? Number(event.preparationHours) : 3), 0),
         eventCount: studyEvents.length,
         eventsByDate: {}
       };
@@ -97,54 +96,66 @@ describe('Nudger Integration with Calendar', () => {
 
   test('should update study plan when events change', async () => {
     // Skip this test for now as it requires more complex mocking
-    // This test would require mocking the Calendar component's internal state
-    // which is challenging without refactoring the component
     console.log('Skipping test: should update study plan when events change');
   });
 
-  test('should check if new events require study time', async () => {
-    // Mock the saveEvent function's behavior
-    const mockSaveEvent = jest.fn().mockImplementation((eventData) => {
-      // Simulate adding a new event
-      const newEvent = {
-        id: Date.now().toString(),
-        ...eventData
-      };
-      
-      // Call the nudger service for the single event
-      const singleEventStudyPlan = nudgerService.getStudyPlan([newEvent]);
-      
-      // Log if the event requires study time
-      if (singleEventStudyPlan.eventCount > 0) {
-        console.log('[KAIR-15] New event may require study time:', singleEventStudyPlan.events[0]);
-      }
-      
-      return newEvent;
-    });
-    
-    // Render the calendar
-    await act(async () => {
-      render(<Calendar />);
-    });
-    
-    // Call the mock saveEvent function with an exam event
-    await act(async () => {
-      const examEvent = {
+  test('should handle events with preparation requirements', async () => {
+    // Setup mock events with requiresPreparation flag
+    const mockEvents = [
+      {
+        id: '1742059570371',
         title: 'Final Exam',
         start: '2025-03-25',
         end: '2025-03-25',
         startTime: '09:00',
         endTime: '11:00',
-        allDay: false
+        allDay: false,
+        requiresPreparation: true,
+        preparationHours: '3'
+      }
+    ];
+
+    // Mock getStudyPlan to include our test event
+    nudgerService.getStudyPlan.mockImplementation(() => {
+      return {
+        events: [{
+          id: '1742059570371',
+          title: 'Final Exam',
+          start: '2025-03-25',
+          end: '2025-03-25',
+          startTime: '09:00',
+          endTime: '11:00',
+          allDay: false,
+          requiresPreparation: true,
+          preparationHours: '3',
+          requiresStudy: true,
+          suggestedStudyHours: 3,
+          identifiedBy: 'nudger'
+        }],
+        totalStudyHours: 3,
+        eventCount: 1,
+        eventsByDate: {
+          '2025-03-25': [{
+            id: '1742059570371',
+            title: 'Final Exam',
+            requiresStudy: true
+          }]
+        }
       };
-      
-      mockSaveEvent(examEvent);
     });
-    
-    // Verify that the nudger service was called for the new event
+
+    await act(async () => {
+      render(<Calendar />);
+    });
+
+    // Verify that getStudyPlan was called
     expect(nudgerService.getStudyPlan).toHaveBeenCalled();
     
-    // Verify that the console log for new event requiring study time was called
-    expect(consoleOutput.some(log => log.includes('[KAIR-15] New event may require study time'))).toBe(true);
+    // Verify that the study plan was logged
+    await waitFor(() => {
+      expect(consoleOutput.some(log => 
+        log.includes('[KAIR-15] Nudger study plan updated')
+      )).toBe(true);
+    });
   });
 });

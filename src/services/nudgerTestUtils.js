@@ -24,6 +24,8 @@ export const createTestEvent = (title, date, options = {}) => {
     end: `${formattedDate}T10:00`,
     description: options.description || '',
     allDay: options.allDay || false,
+    requiresPreparation: options.requiresPreparation || false,
+    preparationHours: options.preparationHours || '',
     ...options
   };
 };
@@ -49,27 +51,38 @@ export const generateTestEvents = () => {
     // Add different types of events
     if (i === 5) {
       events.push(createTestEvent('Midterm Exam', eventDate, {
-        description: 'Comprehensive exam covering all material from weeks 1-5'
+        description: 'Comprehensive exam covering all material from weeks 1-5',
+        requiresPreparation: true,
+        preparationHours: '5'
       }));
     } else if (i === 12) {
       events.push(createTestEvent('Research Paper Due', eventDate, {
-        description: 'Final submission of research paper'
+        description: 'Final submission of research paper',
+        requiresPreparation: true,
+        preparationHours: '4'
       }));
     } else if (i === 19) {
       events.push(createTestEvent('Group Project Presentation', eventDate, {
-        description: 'Present group findings to the class'
+        description: 'Present group findings to the class',
+        requiresPreparation: true,
+        preparationHours: '3'
       }));
     } else if (i === 26) {
       events.push(createTestEvent('Final Exam', eventDate, {
-        description: 'Comprehensive final exam'
+        description: 'Comprehensive final exam',
+        requiresPreparation: true
+        // No preparation hours specified to test the prompt
       }));
     } else if (i % 7 === 3) {
       events.push(createTestEvent('Quiz', eventDate, {
-        description: 'Weekly quiz on recent material'
+        description: 'Weekly quiz on recent material',
+        requiresPreparation: true,
+        preparationHours: '2'
       }));
     } else {
       events.push(createTestEvent('Lecture', eventDate, {
-        description: 'Regular class lecture'
+        description: 'Regular class lecture',
+        requiresPreparation: false
       }));
     }
   }
@@ -109,7 +122,6 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// Create a named export object
 const nudgerTestUtils = {
   createTestEvent,
   generateTestEvents,

@@ -1,8 +1,8 @@
 /**
- * Nudger Service - KAIR-15
+ * Nudger Service - KAIR-15/16
  * 
  * This service identifies events in the next two weeks that may require 
- * additional study time, such as exams and assignments.
+ * additional study time based on the requiresPreparation flag.
  */
 
 /**
@@ -34,87 +34,70 @@ export const identifyUpcomingEvents = (events) => {
 
   console.log(`Nudger: Found ${upcomingEvents.length} events in the next two weeks`);
   
-  // Identify events that may need study time (exams, assignments, etc.)
+  // Identify events that require preparation based on the requiresPreparation flag
   const studyEvents = upcomingEvents.filter(event => {
-    const title = event.title.toLowerCase();
-    const description = (event.description || '').toLowerCase();
-    
-    // Keywords that might indicate an event requiring study time
-    const studyKeywords = [
-      'exam', 'test', 'quiz', 'midterm', 'final', 
-      'assignment', 'homework', 'project', 'paper', 'essay',
-      'presentation', 'deadline'
-    ];
-    
-    // Check if event title or description contains any study keywords
-    return studyKeywords.some(keyword => 
-      title.includes(keyword) || description.includes(keyword)
-    );
+    // Only include events explicitly marked as requiring preparation
+    return event.requiresPreparation === true;
   });
 
-  console.log(`Nudger: Identified ${studyEvents.length} events that may require study time`);
+  console.log(`Nudger: Identified ${studyEvents.length} events that require preparation`);
   
   // Add metadata to identified events
-  return studyEvents.map(event => ({
-    ...event,
-    requiresStudy: true,
-    suggestedStudyHours: estimateStudyHours(event),
-    identifiedBy: 'nudger'
-  }));
+  return studyEvents.map(event => {
+    // Check if the event already has preparation hours specified
+    const needsPreparationInput = event.requiresPreparation === true && 
+      (event.preparationHours === undefined || 
+       event.preparationHours === null || 
+       event.preparationHours === '');
+    
+    return {
+      ...event,
+      requiresStudy: true,
+      // Use user-specified preparation hours if available, otherwise use default
+      suggestedStudyHours: event.preparationHours ? Number(event.preparationHours) : getDefaultStudyHours(),
+      identifiedBy: 'nudger',
+      needsPreparationInput // Flag to indicate if we need to prompt for preparation hours
+    };
+  });
 };
 
 /**
- * Estimates recommended study hours based on event type
- * @param {Object} event - Calendar event
- * @returns {number} - Estimated study hours
+ * Returns default study hours when no user input is available
+ * @returns {number} - Default study hours
  */
-const estimateStudyHours = (event) => {
-  const title = event.title.toLowerCase();
-  // eslint-disable-next-line no-unused-vars
-  const description = (event.description || '').toLowerCase();
-  
-  // Default study hours
-  let hours = 2;
-  
-  // Adjust based on event type
-  if (title.includes('exam') || title.includes('final') || title.includes('midterm')) {
-    hours = 5; // Exams require more study time
-  } else if (title.includes('quiz') || title.includes('test')) {
-    hours = 3; // Quizzes require moderate study time
-  } else if (title.includes('project') || title.includes('paper') || title.includes('essay')) {
-    hours = 4; // Projects and papers require significant time
-  }
-  
-  return hours;
+const getDefaultStudyHours = () => {
+  return 3; // Default to 3 hours of study time
 };
 
 /**
- * Gets all events that require study time
+ * Gets study plan for the next two weeks
  * @param {Array} events - Array of calendar events
  * @returns {Object} - Object containing study events and statistics
  */
 export const getStudyPlan = (events) => {
+  // Identify events that require study time
   const studyEvents = identifyUpcomingEvents(events);
   
-  // Calculate total study hours needed
-  const totalStudyHours = studyEvents.reduce((total, event) => 
-    total + event.suggestedStudyHours, 0);
+  // Calculate total study hours
+  const totalStudyHours = studyEvents.reduce((total, event) => {
+    return total + (event.suggestedStudyHours || 0);
+  }, 0);
   
-  // Group events by date
-  const eventsByDate = studyEvents.reduce((groups, event) => {
+  // Group events by date for easier display
+  const eventsByDate = studyEvents.reduce((acc, event) => {
     const date = event.start.split('T')[0];
-    if (!groups[date]) {
-      groups[date] = [];
+    if (!acc[date]) {
+      acc[date] = [];
     }
-    groups[date].push(event);
-    return groups;
+    acc[date].push(event);
+    return acc;
   }, {});
   
   return {
     events: studyEvents,
     totalStudyHours,
-    eventsByDate,
-    eventCount: studyEvents.length
+    eventCount: studyEvents.length,
+    eventsByDate
   };
 };
 
