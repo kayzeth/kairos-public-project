@@ -7,6 +7,7 @@ import WeekView from './WeekView';
 import DayView from './DayView';
 import EventModal from './EventModal';
 import googleCalendarService from '../services/googleCalendarService';
+import nudgerService from '../services/nudgerService'; // [KAIR-15] Import Nudger service
 
 const Calendar = ({ initialEvents = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -18,6 +19,10 @@ const Calendar = ({ initialEvents = [] }) => {
   const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(false);
   // Now we store both the state value and its setter
   const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
+  // [KAIR-15] Add state for study events
+  // eslint-disable-next-line no-unused-vars
+  const [studyEvents, setStudyEvents] = useState({ events: [], totalStudyHours: 0, eventCount: 0 });
+  // Note: studyEvents will be used in future UI implementation for displaying study recommendations
 
   const nextHandler = () => {
     if (view === 'month') {
@@ -127,8 +132,16 @@ const Calendar = ({ initialEvents = [] }) => {
     checkGoogleCalendarConnection();
   }, [importGoogleCalendarEvents]);
 
-  // (The second useEffect for checking connection appears to be duplicated;
-  // you may consider removing it if it's not needed.)
+  // [KAIR-15] Update Nudger study events whenever calendar events change
+  useEffect(() => {
+    // Run the Nudger service to identify study events
+    const studyPlan = nudgerService.getStudyPlan(events);
+    setStudyEvents(studyPlan);
+    
+    // Make study plan available in the console for testing
+    window.studyPlan = studyPlan;
+    console.log('[KAIR-15] Nudger study plan updated:', studyPlan);
+  }, [events]);
 
   const saveEvent = async (eventData) => {
     // Remove any existing id from eventData
@@ -182,6 +195,14 @@ const Calendar = ({ initialEvents = [] }) => {
         }
         
         setEvents([...events, newEvent]);
+        
+        // [KAIR-15] Check if the new event might require study time
+        setTimeout(() => {
+          const singleEventStudyPlan = nudgerService.getStudyPlan([newEvent]);
+          if (singleEventStudyPlan.eventCount > 0) {
+            console.log('[KAIR-15] New event may require study time:', singleEventStudyPlan.events[0]);
+          }
+        }, 0);
       }
     } catch (error) {
       console.error('Error saving event:', error);
