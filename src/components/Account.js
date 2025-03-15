@@ -148,17 +148,8 @@ const Account = () => {
     e.preventDefault();
     setCanvasStatus({ status: 'loading', message: 'Connecting to Canvas...' });
     try {
-      // Add Bearer prefix to token if not already present
-      const token = canvasFormData.token.startsWith('Bearer ') ? 
-        canvasFormData.token : 
-        `Bearer ${canvasFormData.token}`;
-      
-      // Ensure domain is in the correct format (canvas.domain.edu)
-      const domain = canvasFormData.domain.includes('.') ? 
-        canvasFormData.domain : 
-        `canvas.${canvasFormData.domain}.edu`;
-      
-      await canvasService.setCredentials(token, domain);
+      // Pass the raw token and domain to canvasService
+      await canvasService.setCredentials(canvasFormData.token, canvasFormData.domain);
       await canvasService.testConnection();
       setIsCanvasConnected(true);
       setShowCanvasForm(false); // Hide the form after successful connection
@@ -366,9 +357,13 @@ REACT_APP_GOOGLE_CLIENT_ID=your_client_id_here</pre>
                   id="canvasDomain"
                   value={canvasFormData.domain}
                   onChange={(e) => setCanvasFormData(prev => ({ ...prev, domain: e.target.value }))}
-                  placeholder="e.g., harvard"
+                  placeholder="e.g., harvard (we'll add canvas.*.edu)"
                   required
                 />
+                <small className="form-help">
+                  Enter your school name (e.g., harvard) or full domain (e.g., harvard.edu). 
+                  We'll automatically format it as canvas.*.edu
+                </small>
               </div>
               <button 
                 type="submit" 

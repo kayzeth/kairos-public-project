@@ -4,10 +4,6 @@ import canvasService from '../canvasService';
 global.fetch = jest.fn();
 
 describe('Canvas Service', () => {
-  const TEST_TOKEN = process.env.REACT_APP_CANVAS_TEST_TOKEN;
-  const TEST_DOMAIN = process.env.REACT_APP_CANVAS_TEST_DOMAIN || 'harvard';
-
-  // Set up localStorage mock before each test
   beforeEach(() => {
     // Create storage mock
     const storageMock = {
@@ -30,16 +26,10 @@ describe('Canvas Service', () => {
 
   describe('testConnection', () => {
     test('successfully connects with valid credentials', async () => {
-      // Skip test if no test token is provided
-      if (!TEST_TOKEN) {
-        console.warn('Skipping Canvas API test: No test token provided');
-        return;
-      }
-
       // Set up localStorage with test credentials
       localStorage.getItem.mockImplementation((key) => {
-        if (key === 'canvasToken') return TEST_TOKEN;
-        if (key === 'canvasDomain') return TEST_DOMAIN;
+        if (key === 'canvasToken') return 'Bearer test-token';
+        if (key === 'canvasDomain') return 'canvas.harvard.edu';
         return null;
       });
 
@@ -51,11 +41,14 @@ describe('Canvas Service', () => {
 
       const result = await canvasService.testConnection();
       expect(result).toBe(true);
+      
+      // Verify API call was made with correct domain format and Bearer token
       expect(fetch).toHaveBeenCalledWith(
-        `https://canvas.${TEST_DOMAIN}.edu/api/v1/users/self`,
+        'http://localhost:3001/api/canvas/users/self',
         {
           headers: {
-            'Authorization': `Bearer ${TEST_TOKEN}`
+            'Authorization': 'Bearer test-token',
+            'x-canvas-domain': 'canvas.harvard.edu'
           }
         }
       );
@@ -63,8 +56,8 @@ describe('Canvas Service', () => {
 
     test('fails with invalid credentials', async () => {
       localStorage.getItem.mockImplementation((key) => {
-        if (key === 'canvasToken') return 'invalid-token';
-        if (key === 'canvasDomain') return TEST_DOMAIN;
+        if (key === 'canvasToken') return 'Bearer invalid-token';
+        if (key === 'canvasDomain') return 'canvas.harvard.edu';
         return null;
       });
 
@@ -85,8 +78,8 @@ describe('Canvas Service', () => {
 
     test('handles network errors', async () => {
       localStorage.getItem.mockImplementation((key) => {
-        if (key === 'canvasToken') return TEST_TOKEN || 'test-token';
-        if (key === 'canvasDomain') return TEST_DOMAIN;
+        if (key === 'canvasToken') return 'Bearer test-token';
+        if (key === 'canvasDomain') return 'canvas.harvard.edu';
         return null;
       });
 
@@ -100,17 +93,25 @@ describe('Canvas Service', () => {
     test('successfully syncs assignments to calendar', async () => {
       // Mock localStorage
       localStorage.getItem.mockImplementation((key) => {
-        if (key === 'canvasToken') return TEST_TOKEN;
-        if (key === 'canvasDomain') return TEST_DOMAIN;
+        if (key === 'canvasToken') return 'Bearer test-token';
+        if (key === 'canvasDomain') return 'canvas.harvard.edu';
         if (key === 'calendarEvents') return '[]';
         return null;
       });
 
-      // Mock courses response
+      // Mock courses response with enrollment_state
       fetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve([
-          { id: 1, name: 'Course 1', enrollment_state: 'active' }
+          { 
+            id: 1, 
+            name: 'Course 1', 
+            enrollment_state: 'active',
+            term: {
+              start_at: '2025-01-01T00:00:00Z',
+              end_at: '2025-12-31T23:59:59Z'
+            }
+          }
         ])
       });
 
@@ -123,7 +124,9 @@ describe('Canvas Service', () => {
             name: 'Assignment 1',
             due_at: '2025-04-01T23:59:59Z',
             description: 'Test assignment',
-            points_possible: 100
+            points_possible: 100,
+            course_id: 1,
+            html_url: 'https://canvas.harvard.edu/courses/1/assignments/1'
           }
         ])
       });
@@ -133,16 +136,19 @@ describe('Canvas Service', () => {
       
       // Verify calendar events were stored
       const expectedEvents = [{
+        id: 'canvas-1',
         title: 'Course 1: Assignment 1',
         start: new Date('2025-04-01T23:59:59Z'),
         end: new Date('2025-04-01T23:59:59Z'),
         description: 'Test assignment',
         type: 'canvas',
+        allDay: false,
         color: '#4287f5',
         metadata: {
-          courseId: undefined,
+          courseId: 1,
           assignmentId: 1,
-          points: 100
+          points: 100,
+          url: 'https://canvas.harvard.edu/courses/1/assignments/1'
         }
       }];
 
@@ -151,11 +157,18 @@ describe('Canvas Service', () => {
   });
 
   describe('credential management', () => {
-    test('setCredentials stores token and domain', () => {
-      canvasService.setCredentials('test-token', TEST_DOMAIN);
+    test('setCredentials stores token and formats domain correctly', () => {
+      canvasService.setCredentials('test-token', 'harvard');
       
-      expect(localStorage.setItem).toHaveBeenCalledWith('canvasToken', 'test-token');
-      expect(localStorage.setItem).toHaveBeenCalledWith('canvasDomain', TEST_DOMAIN);
+      expect(localStorage.setItem).toHaveBeenCalledWith('canvasToken', 'Bearer test-token');
+      expect(localStorage.setItem).toHaveBeenCalledWith('canvasDomain', 'canvas.harvard.edu');
+    });
+
+    test('setCredentials preserves domain if already in correct format', () => {
+      canvasService.setCredentials('test-token', 'canvas.harvard.edu');
+      
+      expect(localStorage.setItem).toHaveBeenCalledWith('canvasToken', 'Bearer test-token');
+      expect(localStorage.setItem).toHaveBeenCalledWith('canvasDomain', 'canvas.harvard.edu');
     });
 
     test('clearCredentials removes token and domain', () => {

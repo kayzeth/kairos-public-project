@@ -204,9 +204,22 @@ const canvasService = {
   },
 
   setCredentials: (token, domain) => {
-    // Ensure domain is in the format canvas.domain.edu
-    const formattedDomain = domain.includes('.') ? domain : `canvas.${domain}.edu`;
-    localStorage.setItem('canvasToken', token);
+    // Format domain to ensure it has the canvas.*.edu format
+    let formattedDomain = domain;
+    if (!domain.includes('.')) {
+      // If domain is just the school name (e.g., 'harvard'), format it properly
+      formattedDomain = `canvas.${domain}.edu`;
+    } else if (!domain.startsWith('canvas.')) {
+      // If domain has dots but doesn't start with 'canvas.' (e.g., 'harvard.edu')
+      formattedDomain = `canvas.${domain}`;
+    } else if (!domain.endsWith('.edu')) {
+      // If domain starts with 'canvas.' but doesn't end with '.edu'
+      formattedDomain = `${domain}.edu`;
+    }
+
+    // Add Bearer prefix to token and store credentials in localStorage
+    const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    localStorage.setItem('canvasToken', formattedToken);
     localStorage.setItem('canvasDomain', formattedDomain);
   },
 

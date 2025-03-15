@@ -40,22 +40,34 @@ app.use('/api/canvas/*', async (req, res) => {
     const response = await fetch(canvasUrl, {
       method: req.method,
       headers: {
-        'Authorization': token, // Token already includes 'Bearer ' prefix
+        'Authorization': token,
         'Content-Type': 'application/json'
       },
       body: ['POST', 'PUT', 'PATCH'].includes(req.method) ? JSON.stringify(req.body) : undefined
     });
 
-    console.log('Canvas API response:', {
-      status: response.status,
-      ok: response.ok,
-      statusText: response.statusText
+    // Log the full URL and response for debugging
+    console.log('Canvas API request details:', {
+      fullUrl: canvasUrl,
+      method: req.method,
+      responseStatus: response.status,
+      responseStatusText: response.statusText
     });
 
     if (!response.ok) {
       const error = await response.text();
       console.error('Canvas API error response:', error);
-      throw new Error(error || 'Failed to make Canvas API request');
+      
+      // Return the actual error status code instead of always returning 500
+      res.status(response.status).json({ 
+        error: error || 'Failed to make Canvas API request',
+        details: {
+          status: response.status,
+          statusText: response.statusText,
+          url: canvasUrl
+        }
+      });
+      return;
     }
 
     const data = await response.json();
