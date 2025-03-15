@@ -6,10 +6,14 @@ import Account from '../Account';
 // Mock the dependencies before importing them
 jest.mock('../../services/googleCalendarService');
 jest.mock('../../config/googleCalendarConfig');
+jest.mock('../../services/canvasService');
+jest.mock('../../config/canvasConfig');
 
 // Import the mocked modules after mocking
 import googleCalendarService from '../../services/googleCalendarService';
 import { isConfigured } from '../../config/googleCalendarConfig';
+import canvasService from '../../services/canvasService';
+import { isConfigured as isCanvasConfigured } from '../../config/canvasConfig';
 
 // Mock FontAwesome to avoid issues
 jest.mock('@fortawesome/react-fontawesome', () => ({
@@ -272,5 +276,142 @@ describe('Account Component', () => {
     // Verify signed-in UI
     expect(screen.getByTestId('user-name')).toHaveTextContent('Test User');
     expect(screen.getByTestId('user-email')).toHaveTextContent('test@example.com');
+  });
+});
+
+describe('Canvas Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    isCanvasConfigured.mockReturnValue(false);
+    canvasService.testConnection.mockResolvedValue(true);
+  });
+
+  test('shows connect button when not connected', async () => {
+    await act(async () => {
+      render(<Account />);
+    });
+    
+    expect(screen.getByTestId('canvas-connect-button')).toBeInTheDocument();
+  });
+
+  test('shows form when connect button is clicked', async () => {
+    await act(async () => {
+      render(<Account />);
+    });
+    
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('canvas-connect-button'));
+    });
+    
+    expect(screen.getByLabelText('Canvas Developer Token')).toBeInTheDocument();
+    expect(screen.getByLabelText('School Domain')).toBeInTheDocument();
+  });
+
+  test('successfully connects with valid credentials', async () => {
+    await act(async () => {
+      render(<Account />);
+    });
+    
+    // Click connect button to show form
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('canvas-connect-button'));
+    });
+    
+    // Fill in the form
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Canvas Developer Token'), {
+        target: { value: 'valid-token' }
+      });
+      fireEvent.change(screen.getByLabelText('School Domain'), {
+        target: { value: 'harvard' }
+      });
+    });
+    
+    // Submit the form
+    await act(async () => {
+      fireEvent.submit(screen.getByRole('button', { name: 'Connect' }));
+    });
+    
+    // Check that the service was called with correct values
+    expect(canvasService.setCredentials).toHaveBeenCalledWith('valid-token', 'harvard');
+    expect(canvasService.testConnection).toHaveBeenCalled();
+    
+    // Wait for success message
+    await waitFor(() => {
+      expect(screen.getByText('Successfully connected to Canvas API')).toBeInTheDocument();
+    });
+  });
+
+  test('shows error message with invalid credentials', async () => {
+    // Mock the testConnection to fail
+    canvasService.testConnection.mockRejectedValue(new Error('Invalid credentials'));
+    
+    await act(async () => {
+      render(<Account />);
+    });
+    
+    // Click connect button to show form
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('canvas-connect-button'));
+    });
+    
+    // Fill in the form with invalid credentials
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('Canvas Developer Token'), {
+        target: { value: 'invalid-token' }
+      });
+      fireEvent.change(screen.getByLabelText('School Domain'), {
+        target: { value: 'invalid-domain' }
+      });
+    });
+    
+    // Submit the form
+    await act(async () => {
+      fireEvent.submit(screen.getByRole('button', { name: 'Connect' }));
+    });
+    
+    // Check that credentials were cleared after failure
+    expect(canvasService.clearCredentials).toHaveBeenCalled();
+    
+    // Wait for error message
+    await waitFor(() => {
+      expect(screen.getByText('Failed to connect to Canvas. Please check your credentials.')).toBeInTheDocument();
+    });
+  });
+
+  test('can disconnect after successful connection', async () => {
+    // Start with connected state
+    isCanvasConfigured.mockReturnValue(true);
+    
+    await act(async () => {
+      render(<Account />);
+    });
+    
+    // Click disconnect button
+    await act(async () => {
+      fireEvent.click(screen.getByText('Disconnect Canvas Account'));
+    });
+    
+    expect(canvasService.clearCredentials).toHaveBeenCalled();
+    expect(screen.getByTestId('canvas-connect-button')).toBeInTheDocument();
+  });
+
+  test('canceling form returns to connect button', async () => {
+    await act(async () => {
+      render(<Account />);
+    });
+    
+    // Click connect button to show form
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('canvas-connect-button'));
+    });
+    
+    // Click cancel button
+    await act(async () => {
+      fireEvent.click(screen.getByText('Cancel'));
+    });
+    
+    expect(screen.getByTestId('canvas-connect-button')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Canvas Developer Token')).not.toBeInTheDocument();
   });
 });
