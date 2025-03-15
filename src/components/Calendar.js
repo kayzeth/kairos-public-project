@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
+import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faPlus } from '@fortawesome/free-solid-svg-icons';
 import MonthView from './MonthView';
@@ -186,58 +186,67 @@ const Calendar = ({ initialEvents = [] }) => {
           await googleCalendarService.updateEvent(selectedEvent.googleEventId, formattedEvent);
         } catch (error) {
           console.error('Error updating Google Calendar event:', error);
+          setSyncStatus({ 
+            status: 'error', 
+            message: 'Failed to update event in Google Calendar' 
+          });
+          setTimeout(() => {
+            setSyncStatus({ status: 'idle', message: '' });
+          }, 3000);
         }
-      }
-
-      // Update NudgeManager if study hours were set
-      if (formattedEvent.studyHours !== undefined) {
-        nudgeManager.setStudyHours(selectedEvent.id, formattedEvent.studyHours);
       }
     } else {
-      // Add new event
+      // Create new event
       const newEvent = {
-        id: Date.now().toString(),
         ...formattedEvent,
-        type: formattedEvent.type || 'event' // Ensure type property is present
+        id: Math.random().toString(36).substr(2, 9)
       };
-
-      // If connected to Google Calendar and it's not a local-only event
-      if (isGoogleCalendarConnected && !formattedEvent.localOnly) {
-        try {
-          const googleEvent = await googleCalendarService.createEvent(newEvent);
-          newEvent.googleEventId = googleEvent.id;
-        } catch (error) {
-          console.error('Error creating Google Calendar event:', error);
-        }
-      }
-
       setEvents([...events, newEvent]);
 
-      // Set study hours in NudgeManager if provided for new exam
-      if (newEvent.type === 'exam' && formattedEvent.studyHours !== undefined) {
-        nudgeManager.setStudyHours(newEvent.id, formattedEvent.studyHours);
+      // If connected to Google Calendar and not an exam event, create it there too
+      if (isGoogleCalendarConnected && newEvent.type !== 'exam') {
+        try {
+          const googleEventId = await googleCalendarService.createEvent(newEvent);
+          // Update our event with the Google Calendar ID
+          setEvents(prevEvents => prevEvents.map(event => 
+            event.id === newEvent.id ? { ...event, googleEventId } : event
+          ));
+        } catch (error) {
+          console.error('Error creating Google Calendar event:', error);
+          setSyncStatus({ 
+            status: 'error', 
+            message: 'Failed to create event in Google Calendar' 
+          });
+          setTimeout(() => {
+            setSyncStatus({ status: 'idle', message: '' });
+          }, 3000);
+        }
       }
     }
-    
     closeModal();
   };
 
   const deleteEvent = async (eventId) => {
     const eventToDelete = events.find(event => event.id === eventId);
     
-    if (eventToDelete) {
-      // If it's a Google Calendar event, delete it there too
-      if (eventToDelete.googleEventId && isGoogleCalendarConnected) {
-        try {
-          await googleCalendarService.deleteEvent(eventToDelete.googleEventId);
-        } catch (error) {
-          console.error('Error deleting Google Calendar event:', error);
-        }
+    // If it's a Google Calendar event, delete it there first
+    if (eventToDelete.googleEventId && isGoogleCalendarConnected) {
+      try {
+        await googleCalendarService.deleteEvent(eventToDelete.googleEventId);
+      } catch (error) {
+        console.error('Error deleting Google Calendar event:', error);
+        setSyncStatus({ 
+          status: 'error', 
+          message: 'Failed to delete event from Google Calendar' 
+        });
+        setTimeout(() => {
+          setSyncStatus({ status: 'idle', message: '' });
+        }, 3000);
+        return; // Don't proceed with local deletion if Google Calendar deletion failed
       }
-      
-      setEvents(events.filter(event => event.id !== eventId));
     }
     
+    setEvents(events.filter(event => event.id !== eventId));
     closeModal();
   };
 
@@ -247,58 +256,39 @@ const Calendar = ({ initialEvents = [] }) => {
   };
 
   const handleSetStudyHours = (examId, hours) => {
-    nudgeManager.setStudyHours(examId, hours);
-    setEvents(prevEvents =>
-      prevEvents.map(event =>
-        event.id === examId
-          ? { ...event, studyHours: hours }
-          : event
-      )
-    );
-    setExamsNeedingHours(prevExams => 
-      prevExams.filter(exam => exam.id !== examId)
-    );
+    setEvents(prevEvents => prevEvents.map(event => {
+      if (event.id === examId) {
+        return {
+          ...event,
+          studyHours: hours
+        };
+      }
+      return event;
+    }));
   };
 
   const handleDismissExam = (examId) => {
-    const now = new Date();
-    nudgeManager.dismissExam(examId, now);
     setExamsNeedingHours(prevExams => 
       prevExams.filter(exam => exam.id !== examId)
     );
   };
 
   const renderView = () => {
+    const viewProps = {
+      events,
+      onEventClick: editEvent,
+      onDateClick: addEventHandler
+    };
+
     switch (view) {
       case 'month':
-        return (
-          <MonthView 
-            currentDate={currentDate} 
-            events={events} 
-            onAddEvent={addEventHandler}
-            onEditEvent={editEvent}
-          />
-        );
+        return <MonthView currentDate={currentDate} {...viewProps} />;
       case 'week':
-        return (
-          <WeekView 
-            currentDate={currentDate} 
-            events={events} 
-            onAddEvent={addEventHandler}
-            onEditEvent={editEvent}
-          />
-        );
+        return <WeekView currentDate={currentDate} {...viewProps} />;
       case 'day':
-        return (
-          <DayView 
-            currentDate={currentDate} 
-            events={events} 
-            onAddEvent={addEventHandler}
-            onEditEvent={editEvent}
-          />
-        );
+        return <DayView currentDate={currentDate} {...viewProps} />;
       default:
-        return null;
+        return <MonthView currentDate={currentDate} {...viewProps} />;
     }
   };
 
@@ -306,14 +296,15 @@ const Calendar = ({ initialEvents = [] }) => {
     <div className="calendar-container">
       {/* Render sync status as a popup banner if not idle */}
       {syncStatus.status !== 'idle' && (
-        <div className={`sync-banner sync-${syncStatus.status}`} data-testid="sync-status">
+        <div className={`sync-status-banner ${syncStatus.status}`}>
           {syncStatus.message}
         </div>
       )}
+      
       <div className="calendar-header">
         <div className="calendar-title">
           {view === 'month' && format(currentDate, 'MMMM yyyy')}
-          {view === 'week' && `Week of ${format(startOfWeek(currentDate), 'MMM d')} - ${format(endOfWeek(currentDate), 'MMM d, yyyy')}`}
+          {view === 'week' && `Week of ${format(currentDate, 'MMM d')} - ${format(addDays(currentDate, 6), 'MMM d, yyyy')}`}
           {view === 'day' && format(currentDate, 'EEEE, MMMM d, yyyy')}
         </div>
         <div className="calendar-nav">
@@ -356,7 +347,7 @@ const Calendar = ({ initialEvents = [] }) => {
       {renderView()}
 
       {showModal && (
-        <EventModal 
+        <EventModal
           onClose={closeModal}
           onSave={saveEvent}
           onDelete={deleteEvent}
@@ -368,7 +359,7 @@ const Calendar = ({ initialEvents = [] }) => {
       {examsNeedingHours.length > 0 && (
         <StudyHoursNotification
           exams={examsNeedingHours}
-          onSetHours={handleSetStudyHours}
+          onSetStudyHours={handleSetStudyHours}
           onDismiss={handleDismissExam}
         />
       )}
