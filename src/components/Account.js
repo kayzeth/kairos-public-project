@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
-import { faSync, faCheck, faTimes, faCalendarAlt, faGraduationCap } from '@fortawesome/free-solid-svg-icons';
+import { faSync, faCheck, faTimes, faCalendarAlt } from '@fortawesome/free-solid-svg-icons';
 import googleCalendarService from '../services/googleCalendarService';
 import canvasService from '../services/canvasService';
 import { isConfigured } from '../config/googleCalendarConfig';
@@ -14,7 +14,7 @@ const Account = () => {
   const [apiConfigured] = useState(isConfigured());
   const [canvasStatus, setCanvasStatus] = useState({ status: 'idle', message: '' });
   const [canvasSyncStatus, setCanvasSyncStatus] = useState({ status: 'idle', message: '' });
-  const [showCanvasForm, setShowCanvasForm] = useState(false);
+  const [setShowCanvasForm] = useState(false);
   const [canvasFormData, setCanvasFormData] = useState({ token: '', domain: '' });
   const [isCanvasConnected, setIsCanvasConnected] = useState(isCanvasConfigured());
 

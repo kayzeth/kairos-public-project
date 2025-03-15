@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay } from 'date-fns';
 
 const MonthView = ({ currentDate, events, onAddEvent, onEditEvent }) => {
   const [cellHeight, setCellHeight] = useState('auto');
