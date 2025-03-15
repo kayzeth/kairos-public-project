@@ -4,12 +4,22 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faTrashAlt, faClock, faMapMarkerAlt, faAlignLeft } from '@fortawesome/free-solid-svg-icons';
 
 const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date() }) => {
+  const formatDateForInput = (date) => {
+    const d = new Date(date);
+    return format(d, 'yyyy-MM-dd');
+  };
+
+  const formatTimeForInput = (date) => {
+    const d = new Date(date);
+    return format(d, 'HH:mm');
+  };
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     location: '',
-    start: format(selectedDate, 'yyyy-MM-dd'),
-    end: format(selectedDate, 'yyyy-MM-dd'),
+    start: formatDateForInput(selectedDate),
+    end: formatDateForInput(selectedDate),
     startTime: '09:00',
     endTime: '10:00',
     allDay: false,
@@ -28,10 +38,10 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
         title: event.title || '',
         description: event.description || '',
         location: event.location || '',
-        start: format(startDate, 'yyyy-MM-dd'),
-        end: format(endDate, 'yyyy-MM-dd'),
-        startTime: format(startDate, 'HH:mm'),
-        endTime: format(endDate, 'HH:mm'),
+        start: formatDateForInput(startDate),
+        end: formatDateForInput(endDate),
+        startTime: formatTimeForInput(startDate),
+        endTime: formatTimeForInput(endDate),
         allDay: event.allDay || false,
         type: event.type || 'event',
         studyHours: event.studyHours || '',
@@ -191,8 +201,8 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
                 style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
               />
             </div>
-            <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-              <div style={{ marginRight: '12px', color: 'var(--text-light)', marginTop: '10px' }}>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <div style={{ marginRight: '12px', color: 'var(--text-light)' }}>
                 <FontAwesomeIcon icon={faAlignLeft} />
               </div>
               <select
@@ -203,36 +213,27 @@ const EventModal = ({ onClose, onSave, onDelete, event, selectedDate = new Date(
                 onChange={handleChange}
                 style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
               >
-                <option value="event">Regular Event</option>
+                <option value="event">Event</option>
                 <option value="exam">Exam</option>
                 <option value="assignment">Assignment</option>
               </select>
             </div>
             {formData.type === 'exam' && (
-              <div className="form-group" style={{ display: 'flex', alignItems: 'flex-start', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-                <div style={{ marginRight: '12px', color: 'var(--text-light)', marginTop: '10px' }}>
-                  <FontAwesomeIcon icon={faAlignLeft} />
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <div style={{ marginRight: '12px', color: 'var(--text-light)' }}>
+                  <FontAwesomeIcon icon={faClock} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  {formData.studyHours ? (
-                    <div className="study-hours-display">
-                      <label>Planned Study Hours</label>
-                      <p>{formData.studyHours} hours</p>
-                    </div>
-                  ) : (
-                    <p className="no-study-hours">No study hours planned yet</p>
-                  )}
-                  <input
-                    type="number"
-                    id="studyHours"
-                    name="studyHours"
-                    className="form-input"
-                    value={formData.studyHours}
-                    onChange={handleChange}
-                    placeholder="Add study hours"
-                    style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
-                  />
-                </div>
+                <input
+                  type="number"
+                  id="studyHours"
+                  name="studyHours"
+                  className="form-input"
+                  value={formData.studyHours}
+                  onChange={handleChange}
+                  placeholder="Study hours needed"
+                  min="0"
+                  style={{ flex: 1, border: 'none', borderBottom: '1px solid var(--border-color)' }}
+                />
               </div>
             )}
             <div className="form-group" style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>

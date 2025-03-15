@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from 'date-fns';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight, faPlus } from '@fortawesome/free-solid-svg-icons';
@@ -8,30 +8,9 @@ import DayView from './DayView';
 import EventModal from './EventModal';
 import StudyHoursNotification from './StudyHoursNotification';
 import NudgeManager from '../utils/NudgeManager';
+import googleCalendarService from '../services/googleCalendarService';
 
-// Initialize with some test exam events (without study hours)
-const initialEvents = [
-  {
-    id: '1',
-    title: 'CS1060 Final Exam',
-    type: 'exam',
-    start: addDays(new Date(), 7).toISOString().split('T')[0] + 'T14:00:00',
-    end: addDays(new Date(), 7).toISOString().split('T')[0] + 'T16:00:00',
-    description: 'Computer Science Final Examination',
-    allDay: false
-  },
-  {
-    id: '2',
-    title: 'MATH2200 Midterm',
-    type: 'exam',
-    start: addDays(new Date(), 10).toISOString().split('T')[0] + 'T10:00:00',
-    end: addDays(new Date(), 10).toISOString().split('T')[0] + 'T12:00:00',
-    description: 'Linear Algebra Midterm',
-    allDay: false
-  }
-];
-
-const Calendar = () => {
+const Calendar = ({ initialEvents = [] }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('month');
   const [events, setEvents] = useState(initialEvents);
@@ -40,6 +19,8 @@ const Calendar = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [nudgeManager] = useState(() => new NudgeManager());
   const [examsNeedingHours, setExamsNeedingHours] = useState([]);
+  const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(false);
+  const [syncStatus, setSyncStatus] = useState({ status: 'idle', message: '' });
 
   useEffect(() => {
     const checkExams = () => {
@@ -59,6 +40,79 @@ const Calendar = () => {
     const interval = setInterval(checkExams, 60000);
     return () => clearInterval(interval);
   }, [events, nudgeManager]);
+
+  // Import events from Google Calendar
+  const importGoogleCalendarEvents = useCallback(async () => {
+    try {
+      setSyncStatus({ status: 'loading', message: 'Importing events from Google Calendar...' });
+        
+      // Get events from the last month to the next month
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      const oneMonthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        
+      const googleEvents = await googleCalendarService.importEvents(oneMonthAgo, oneMonthFromNow);
+        
+      // Filter out any Google events that might already be in our events array
+      const existingGoogleEventIds = events
+        .filter(event => event.googleEventId)
+        .map(event => event.googleEventId);
+        
+      const newGoogleEvents = googleEvents.filter(
+        event => !existingGoogleEventIds.includes(event.googleEventId)
+      );
+        
+      // Add the new Google events to our events array
+      setEvents(prevEvents => [...prevEvents, ...newGoogleEvents]);
+        
+      setSyncStatus({ 
+        status: 'success', 
+        message: `Successfully imported ${newGoogleEvents.length} events from Google Calendar` 
+      });
+        
+      // Clear the success message after a few seconds
+      setTimeout(() => {
+        setSyncStatus({ status: 'idle', message: '' });
+      }, 3000);
+        
+    } catch (error) {
+      console.error('Error importing Google Calendar events:', error);
+      setSyncStatus({ 
+        status: 'error', 
+        message: 'Failed to import events from Google Calendar' 
+      });
+        
+      // Clear the error message after a few seconds
+      setTimeout(() => {
+        setSyncStatus({ status: 'idle', message: '' });
+      }, 3000);
+    }
+  }, [events]);
+
+  // Check if Google Calendar is connected when component mounts
+  useEffect(() => {
+    const checkGoogleCalendarConnection = async () => {
+      try {
+        await googleCalendarService.initialize();
+        const isSignedIn = googleCalendarService.isSignedIn();
+        setIsGoogleCalendarConnected(isSignedIn);
+        
+        // Add listener for sign-in state changes
+        googleCalendarService.addSignInListener((isSignedIn) => {
+          setIsGoogleCalendarConnected(isSignedIn);
+        });
+        
+        // If signed in, import events from Google Calendar
+        if (isSignedIn) {
+          importGoogleCalendarEvents();
+        }
+      } catch (error) {
+        console.error('Error checking Google Calendar connection:', error);
+      }
+    };
+    
+    checkGoogleCalendarConnection();
+  }, [importGoogleCalendarEvents]);
 
   const nextHandler = () => {
     if (view === 'month') {
@@ -95,47 +149,95 @@ const Calendar = () => {
     setSelectedEvent(null);
   };
 
-  const saveEvent = (eventData) => {
+  const saveEvent = async (eventData) => {
     const { id: _, ...cleanEventData } = eventData;
     
+    // Ensure dates are properly formatted with timezone consideration
+    const formatEventDate = (date, time) => {
+      if (!date) return null;
+      const [year, month, day] = date.split('-');
+      const [hours, minutes] = (time || '00:00').split(':');
+      const eventDate = new Date(year, month - 1, day, hours, minutes);
+      return eventDate.toISOString();
+    };
+
+    const formattedEvent = {
+      ...cleanEventData,
+      start: cleanEventData.allDay ? cleanEventData.start : formatEventDate(cleanEventData.start, cleanEventData.startTime),
+      end: cleanEventData.allDay ? cleanEventData.end : formatEventDate(cleanEventData.end, cleanEventData.endTime)
+    };
+    
     if (selectedEvent) {
+      // Update existing event
       const updatedEvents = events.map(event => 
         event.id === selectedEvent.id ? { 
           ...event, 
-          ...cleanEventData,
+          ...formattedEvent,
           // Keep existing study hours if not being updated
-          studyHours: cleanEventData.studyHours !== undefined ? cleanEventData.studyHours : event.studyHours,
-          start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
-          end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`,
-          type: cleanEventData.type || event.type // Ensure type property is present
+          studyHours: formattedEvent.studyHours !== undefined ? formattedEvent.studyHours : event.studyHours,
+          type: formattedEvent.type || event.type // Ensure type property is present
         } : event
       );
       setEvents(updatedEvents);
 
+      // If it's a Google Calendar event, update it there too
+      if (selectedEvent.googleEventId && isGoogleCalendarConnected) {
+        try {
+          await googleCalendarService.updateEvent(selectedEvent.googleEventId, formattedEvent);
+        } catch (error) {
+          console.error('Error updating Google Calendar event:', error);
+        }
+      }
+
       // Update NudgeManager if study hours were set
-      if (cleanEventData.studyHours !== undefined) {
-        nudgeManager.setStudyHours(selectedEvent.id, cleanEventData.studyHours);
+      if (formattedEvent.studyHours !== undefined) {
+        nudgeManager.setStudyHours(selectedEvent.id, formattedEvent.studyHours);
       }
     } else {
+      // Add new event
       const newEvent = {
         id: Date.now().toString(),
-        ...cleanEventData,
-        start: cleanEventData.allDay ? cleanEventData.start : `${cleanEventData.start}T${cleanEventData.startTime}`,
-        end: cleanEventData.allDay ? cleanEventData.end : `${cleanEventData.end}T${cleanEventData.endTime}`,
-        type: cleanEventData.type || 'event' // Ensure type property is present
+        ...formattedEvent,
+        type: formattedEvent.type || 'event' // Ensure type property is present
       };
+
+      // If connected to Google Calendar and it's not a local-only event
+      if (isGoogleCalendarConnected && !formattedEvent.localOnly) {
+        try {
+          const googleEvent = await googleCalendarService.createEvent(newEvent);
+          newEvent.googleEventId = googleEvent.id;
+        } catch (error) {
+          console.error('Error creating Google Calendar event:', error);
+        }
+      }
+
       setEvents([...events, newEvent]);
 
       // Set study hours in NudgeManager if provided for new exam
-      if (newEvent.type === 'exam' && cleanEventData.studyHours !== undefined) {
-        nudgeManager.setStudyHours(newEvent.id, cleanEventData.studyHours);
+      if (newEvent.type === 'exam' && formattedEvent.studyHours !== undefined) {
+        nudgeManager.setStudyHours(newEvent.id, formattedEvent.studyHours);
       }
     }
+    
     closeModal();
   };
 
-  const deleteEvent = (id) => {
-    setEvents(prevEvents => prevEvents.filter(event => event.id !== id));
+  const deleteEvent = async (eventId) => {
+    const eventToDelete = events.find(event => event.id === eventId);
+    
+    if (eventToDelete) {
+      // If it's a Google Calendar event, delete it there too
+      if (eventToDelete.googleEventId && isGoogleCalendarConnected) {
+        try {
+          await googleCalendarService.deleteEvent(eventToDelete.googleEventId);
+        } catch (error) {
+          console.error('Error deleting Google Calendar event:', error);
+        }
+      }
+      
+      setEvents(events.filter(event => event.id !== eventId));
+    }
+    
     closeModal();
   };
 
@@ -202,6 +304,12 @@ const Calendar = () => {
 
   return (
     <div className="calendar-container">
+      {/* Render sync status as a popup banner if not idle */}
+      {syncStatus.status !== 'idle' && (
+        <div className={`sync-banner sync-${syncStatus.status}`} data-testid="sync-status">
+          {syncStatus.message}
+        </div>
+      )}
       <div className="calendar-header">
         <div className="calendar-title">
           {view === 'month' && format(currentDate, 'MMMM yyyy')}
