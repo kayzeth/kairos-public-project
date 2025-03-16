@@ -39,6 +39,26 @@ const Calendar = ({ initialEvents = [] }) => {
     }
   }, []);
 
+  // Handle initialEvents prop
+  useEffect(() => {
+    if (initialEvents && initialEvents.length > 0) {
+      console.log('Received initialEvents:', initialEvents.length);
+      // Combine with existing events from localStorage
+      loadEvents();
+      setEvents(prevEvents => {
+        const combinedEvents = [...prevEvents, ...initialEvents];
+        // Save combined events to localStorage
+        try {
+          localStorage.setItem('calendarEvents', JSON.stringify(combinedEvents));
+          console.log('Saved combined events to localStorage:', combinedEvents.length);
+        } catch (error) {
+          console.error('Error saving combined events to localStorage:', error);
+        }
+        return combinedEvents;
+      });
+    }
+  }, [initialEvents, loadEvents]);
+
   // Load events when component mounts and listen for updates
   useEffect(() => {
     loadEvents();
