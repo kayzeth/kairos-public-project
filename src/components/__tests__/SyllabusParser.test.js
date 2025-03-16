@@ -191,4 +191,84 @@ describe('SyllabusParser Component', () => {
       );
     });
   });
+
+  describe('Calendar Event Integration', () => {
+    test('converts OpenAI response to calendar events correctly', async () => {
+      const mockOnAddEvents = jest.fn();
+      render(<SyllabusParser onAddEvents={mockOnAddEvents} />);
+
+      // Mock OpenAI response data
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              courseName: 'Advanced React',
+              courseCode: 'CS401',
+              instructor: 'Jane Smith',
+              meetingTimes: [{
+                day: 'Tuesday',
+                startTime: '2:00 PM',
+                endTime: '3:30 PM',
+                location: 'Room 202'
+              }],
+              assignments: [{
+                title: 'Project Proposal',
+                dueDate: '2025-03-25',
+                description: 'Submit project proposal'
+              }],
+              exams: []
+            })
+          }
+        }]
+      };
+
+      // Mock fetch response
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse)
+      });
+
+      // Simulate file selection and API key input
+      const file = new File(['dummy content'], 'syllabus.txt', { type: 'text/plain' });
+      const fileInput = screen.getByLabelText(/Choose syllabus file/i);
+      Object.defineProperty(fileInput, 'files', {
+        value: [file]
+      });
+      fireEvent.change(fileInput);
+
+      const apiKeyInput = screen.getByPlaceholderText('Enter your OpenAI API key');
+      fireEvent.change(apiKeyInput, { target: { value: 'test-api-key' } });
+
+      // Trigger parsing
+      fireEvent.click(screen.getByText('Parse Syllabus'));
+
+      // Wait for parsed data to appear
+      await waitFor(() => {
+        expect(screen.getByText('Extracted Information')).toBeInTheDocument();
+      });
+
+      // Simulate adding events to calendar
+      const addToCalendarButton = screen.getByText('Add to Calendar');
+      fireEvent.click(addToCalendarButton);
+
+      // Verify calendar events were created correctly
+      await waitFor(() => {
+        expect(mockOnAddEvents).toHaveBeenCalledWith(expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Advanced React - Room 202',
+            start: expect.stringMatching(/2025-03-\d{2}T14:00:00/),
+            end: expect.stringMatching(/2025-03-\d{2}T15:30:00/),
+            recurring: true,
+            recurringPattern: 'tuesday'
+          }),
+          expect.objectContaining({
+            title: 'Due: Project Proposal',
+            start: expect.stringMatching(/2025-03-\d{2}/),
+            end: expect.stringMatching(/2025-03-\d{2}/),
+            allDay: true
+          })
+        ]));
+      });
+    });
+  });
 });
